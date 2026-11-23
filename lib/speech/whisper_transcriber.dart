@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:whisper_ggml/whisper_ggml.dart';
@@ -11,6 +12,25 @@ const modelAsset = 'assets/models/ggml-base-q5_1.bin';
 
 /// whisper_ggml은 <지원폴더>/ggml-<이름>.bin만 읽으므로 이 슬롯 이름으로 복사한다.
 const _modelSlot = WhisperModel.base;
+
+/// [target]에 모델이 없거나, 잘렸거나, [version]이 바뀌었을 때만 [load]로 읽어 쓴다.
+/// 옆에 `<target>.ok` 표시 파일(버전:크기)을 두어, 이미 꺼낸 모델(수십 MB)을
+/// 앱을 켤 때마다 메모리에 다시 올리지 않게 한다.
+Future<void> ensureModelFile(File target, Future<ByteData> Function() load,
+    {required String version}) async {
+  final marker = File('${target.path}.ok');
+  if (target.existsSync() &&
+      marker.existsSync() &&
+      marker.readAsStringSync() == '$version:${target.lengthSync()}') {
+    return;
+  }
+  final data = await load();
+  await target.parent.create(recursive: true);
+  await target.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true);
+  await marker.writeAsString('$version:${data.lengthInBytes}', flush: true);
+}
 
 class TranscriptionException implements Exception {
   const TranscriptionException(this.message);
@@ -38,10 +58,8 @@ class WhisperChunkEngine implements ChunkEngine {
   /// 앱에 든 모델을 처음 한 번 지원 폴더로 꺼낸다.
   Future<void> _ensureModel() => _modelReady ??= () async {
         final target = File(await _controller.getPath(_modelSlot));
-        final data = await rootBundle.load(modelAsset);
-        if (target.existsSync() && target.lengthSync() == data.lengthInBytes) return;
-        await target.parent.create(recursive: true);
-        await target.writeAsBytes(data.buffer.asUint8List(), flush: true);
+        await ensureModelFile(target, () => rootBundle.load(modelAsset),
+            version: modelAsset);
       }();
 
   @override
