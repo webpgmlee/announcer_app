@@ -2,6 +2,8 @@
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
+import 'data/models.dart';
+import 'screens/practice_screen.dart';
 import 'screens/script_list_screen.dart';
 
 export 'providers.dart';
@@ -22,6 +24,10 @@ class AnnouncerApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
         ),
-        home: const ScriptListScreen(),
+        home: const ScriptListScreen(onOpen: openPractice),
       );
 }
+
+void openPractice(BuildContext context, Script script) =>
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => PracticeScreen(script: script)));

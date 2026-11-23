@@ -1,8 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'audio/player.dart';
+import 'audio/recorder.dart';
 import 'data/models.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
+import 'speech/transcriber.dart';
+import 'speech/whisper_transcriber.dart';
 
 /// main()에서 DB를 연 뒤 ProviderScope overrides로 넣는다.
 final scriptRepositoryProvider =
@@ -12,3 +16,9 @@ final sessionRepositoryProvider =
 
 final scriptsProvider = FutureProvider<List<Script>>(
     (ref) => ref.watch(scriptRepositoryProvider).all());
+
+final recorderProvider =
+    Provider<Recorder>((ref) => StreamRecorder(RecordPcmSource()));
+final transcriberProvider = Provider<Transcriber>((ref) => WhisperTranscriber());
+final playerFactoryProvider =
+    Provider<Player Function()>((ref) => JustAudioPlayer.new);
