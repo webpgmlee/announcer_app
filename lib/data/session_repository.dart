@@ -33,7 +33,7 @@ class SessionRepository {
         'sessions',
         {
           'marks_json': encodeMarks(marks),
-          if (transcript != null) 'transcript': transcript,
+          'transcript': ?transcript,
         },
         where: 'id = ?',
         whereArgs: [id],
