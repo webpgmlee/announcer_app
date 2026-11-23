@@ -49,3 +49,8 @@ app.*.map.json
 
 # superpowers workspace
 .superpowers/
+
+# 시험용 모델 파일
+.models/
+
+/android/build/
