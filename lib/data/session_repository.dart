@@ -64,9 +64,10 @@ class SessionRepository {
     }
   }
 
+  /// 파일 하나 지우기는 짧으므로 동기로 처리해, 목록이 갱신되기 전에 확실히 지운다.
   static Future<void> _deleteFile(String path) async {
     final f = File(path);
-    if (await f.exists()) await f.delete();
+    if (f.existsSync()) f.deleteSync();
   }
 
   static PracticeSession _fromRow(Map<String, Object?> r) => PracticeSession(

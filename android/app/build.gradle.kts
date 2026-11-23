@@ -7,7 +7,8 @@ plugins {
 android {
     namespace = "kr.tg.announcer_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // whisper_ggml(whisper.cpp)이 요구하는 NDK
+    ndkVersion = "29.0.13113456"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -19,7 +20,8 @@ android {
         applicationId = "kr.tg.announcer_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // whisper_ggml 최소 요구(API 24, 안드로이드 7). 13 미만 기기도 모든 기능을 쓴다.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)

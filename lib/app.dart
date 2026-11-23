@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/models.dart';
+import 'screens/history_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/script_list_screen.dart';
 
@@ -30,4 +31,8 @@ class AnnouncerApp extends StatelessWidget {
 
 void openPractice(BuildContext context, Script script) =>
     Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => PracticeScreen(script: script)));
+        builder: (_) => PracticeScreen(script: script, onOpenHistory: openHistory)));
+
+void openHistory(BuildContext context, Script script) =>
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => HistoryScreen(script: script)));

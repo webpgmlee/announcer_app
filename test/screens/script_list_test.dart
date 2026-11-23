@@ -100,6 +100,19 @@ void main() {
     expect(find.text('클립보드 원고입니다'), findsOneWidget);
   });
 
+  testWidgets('원고를 밀어서 지우면 확인 후 사라진다', (tester) async {
+    await scripts.add(Script(
+        title: '지울 원고', body: '본문', createdAt: DateTime(2026, 11, 23)));
+    await pumpApp(tester);
+    await tester.drag(find.text('지울 원고'), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('지우기'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('지울 원고'), findsNothing);
+    expect(await scripts.all(), isEmpty);
+  });
+
   testWidgets('저장된 원고가 있으면 바로 목록을 보여준다', (tester) async {
     await scripts.add(Script(
         title: '저장된 원고', body: 'KBS 뉴스', createdAt: DateTime(2026, 11, 23)));
