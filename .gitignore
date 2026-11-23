@@ -54,3 +54,6 @@ app.*.map.json
 .models/
 
 /android/build/
+
+# APK에 넣는 시험용 모델 (원본은 .models/)
+spike/assets/*.bin

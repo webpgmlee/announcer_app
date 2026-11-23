@@ -9,6 +9,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import 'package:whisper_ggml/whisper_ggml.dart';
 
@@ -33,6 +34,16 @@ class _SpikePageState extends State<SpikePage> {
     setState(() => _busy = true);
     try {
       final ext = (await getExternalStorageDirectory())!.path;
+      // 폰에 넣은 파일이 없으면 APK에 든 샘플(TTS 낭독)을 꺼내 쓴다.
+      final bundled = ['news.wav', 'script.txt', if (quantFile == 'ggml-base-q5_1.bin') quantFile];
+      for (final name in bundled) {
+        final f = File('$ext/$name');
+        if (!f.existsSync()) {
+          final data = await rootBundle.load('spike/assets/$name');
+          await f.writeAsBytes(data.buffer.asUint8List());
+          _say('$name: APK 샘플 사용');
+        }
+      }
       final wav = '$ext/news.wav';
       final script = await File('$ext/script.txt').readAsString();
       // whisper_ggml은 <지원폴더>/ggml-<이름>.bin 만 읽으므로 양자화 파일을 그 이름으로 복사한다.
