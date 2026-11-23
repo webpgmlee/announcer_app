@@ -7,9 +7,9 @@ import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 
 import '../data/session_repository.dart';
+import 'wav.dart';
 
-/// 녹음 형식: 16kHz, 모노, PCM16 WAV (Whisper 입력과 같다).
-const recordSampleRate = 16000;
+export 'wav.dart' show recordSampleRate;
 
 /// 녹음 1회 최대 길이 (스펙 2장).
 const maxRecordDuration = Duration(minutes: 5);
@@ -166,31 +166,6 @@ class StreamRecorder implements Recorder {
       return result;
     }();
   }
-}
-
-/// 16kHz 모노 PCM16 WAV 헤더(44바이트).
-Uint8List wavHeader(int dataBytes) {
-  final h = ByteData(44);
-  void ascii(int at, String s) {
-    for (var i = 0; i < s.length; i++) {
-      h.setUint8(at + i, s.codeUnitAt(i));
-    }
-  }
-
-  ascii(0, 'RIFF');
-  h.setUint32(4, 36 + dataBytes, Endian.little);
-  ascii(8, 'WAVE');
-  ascii(12, 'fmt ');
-  h.setUint32(16, 16, Endian.little);
-  h.setUint16(20, 1, Endian.little); // PCM
-  h.setUint16(22, 1, Endian.little); // 모노
-  h.setUint32(24, recordSampleRate, Endian.little);
-  h.setUint32(28, recordSampleRate * 2, Endian.little);
-  h.setUint16(32, 2, Endian.little);
-  h.setUint16(34, 16, Endian.little);
-  ascii(36, 'data');
-  h.setUint32(40, dataBytes, Endian.little);
-  return h.buffer.asUint8List();
 }
 
 /// 실제 마이크. `record` 패키지의 스트림 녹음을 쓴다.

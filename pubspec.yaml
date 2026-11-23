@@ -69,6 +69,7 @@ flutter:
   # Task 1 시험용 샘플 (spike 삭제 시 함께 지운다)
   assets:
     - spike/assets/
+    - assets/models/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

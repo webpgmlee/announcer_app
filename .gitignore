@@ -57,3 +57,6 @@ app.*.map.json
 
 # APK¿¡ ³Ö´Â ½ÃÇè¿ë ¸ğµ¨ (¿øº»Àº .models/)
 spike/assets/*.bin
+
+# ì•±ì— ë„£ëŠ” ì¸ì‹ ëª¨ë¸ (assets/models/README.md ì°¸ê³ )
+assets/models/*.bin
