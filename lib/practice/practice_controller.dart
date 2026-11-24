@@ -6,12 +6,15 @@ import 'package:flutter/foundation.dart';
 
 import '../analysis/compare.dart';
 import '../analysis/intonation.dart';
+import '../analysis/live_metrics.dart';
 import '../analysis/pitch.dart';
+import '../analysis/script_tracker.dart';
 import '../analysis/syllables.dart';
 import '../audio/recorder.dart';
 import '../audio/wav.dart';
 import '../data/models.dart';
 import '../data/session_repository.dart';
+import '../speech/live_transcriber.dart';
 import '../speech/transcriber.dart';
 
 enum PracticePhase { idle, recording, permissionDenied, result }
@@ -23,11 +26,31 @@ enum ResultStatus { metricsReady, complete }
 const noVoiceMessage = '목소리가 들리지 않았어요';
 const transcribeFailedMessage = '다르게 들린 단어를 찾지 못했어요. 다시 녹음해 보세요.';
 
+/// 목소리가 계속 들어오는데 들린 글이 이 시간 넘게 늘지 않으면 실시간 인식이 늦다고 본다.
+const liveLagLimit = Duration(seconds: 6);
+
+/// 이보다 큰 소리를 "목소리가 들어오는 중"으로 본다 (dBFS).
+const voiceDb = -40.0;
+
+/// 파형 막대 하나의 길이와 보여줄 개수.
+const waveformBar = Duration(milliseconds: 100);
+const waveformBars = 40;
+
+/// 소리 크기를 판단하는 최근 구간.
+const loudnessWindow = Duration(milliseconds: 500);
+
 class PracticeState {
   const PracticeState({
     this.phase = PracticePhase.idle,
     this.elapsed = Duration.zero,
     this.livePitch = const [],
+    this.position = 0,
+    this.progress = 0,
+    this.speed,
+    this.loudness = LoudLevel.quiet,
+    this.waveform = const [],
+    this.estimating = false,
+    this.remaining = Duration.zero,
     this.resultStatus,
     this.session,
     this.intonation,
@@ -47,6 +70,23 @@ class PracticeState {
   /// 녹음 중 실시간 억양 선.
   final List<PitchPoint> livePitch;
 
+  /// 원고에서 지금 읽는 위치 (읽는 소리 단위)와 비율.
+  final int position;
+  final double progress;
+
+  /// 최근 속도. 아직 모르면 null.
+  final SpeedLevel? speed;
+  final LoudLevel loudness;
+
+  /// 0.1초마다의 소리 크기(dBFS), 최근 [waveformBars]개.
+  final List<double> waveform;
+
+  /// 실시간 인식 대신 목소리 시간으로 위치를 추정하는 중이면 true.
+  final bool estimating;
+
+  /// 남은 원고를 읽는 데 걸릴 시간.
+  final Duration remaining;
+
   final ResultStatus? resultStatus;
   final PracticeSession? session;
   final IntonationReport? intonation;
@@ -64,32 +104,32 @@ class PracticeState {
   final bool interrupted;
 
   PracticeState copyWith({
-    PracticePhase? phase,
-    Duration? elapsed,
-    List<PitchPoint>? livePitch,
     ResultStatus? resultStatus,
-    PracticeSession? session,
-    IntonationReport? intonation,
     List<WordMark>? marks,
     String? transcript,
     double? transcribeProgress,
-    String? message,
     String? error,
-    bool? interrupted,
   }) =>
       PracticeState(
-        phase: phase ?? this.phase,
-        elapsed: elapsed ?? this.elapsed,
-        livePitch: livePitch ?? this.livePitch,
+        phase: phase,
+        elapsed: elapsed,
+        livePitch: livePitch,
+        position: position,
+        progress: progress,
+        speed: speed,
+        loudness: loudness,
+        waveform: waveform,
+        estimating: estimating,
+        remaining: remaining,
         resultStatus: resultStatus ?? this.resultStatus,
-        session: session ?? this.session,
-        intonation: intonation ?? this.intonation,
+        session: session,
+        intonation: intonation,
         marks: marks ?? this.marks,
         transcript: transcript ?? this.transcript,
         transcribeProgress: transcribeProgress ?? this.transcribeProgress,
-        message: message ?? this.message,
+        message: message,
         error: error ?? this.error,
-        interrupted: interrupted ?? this.interrupted,
+        interrupted: interrupted,
       );
 }
 
@@ -99,6 +139,7 @@ class PracticeController extends ChangeNotifier {
     required this._recorder,
     required this._transcriber,
     required this._sessions,
+    this.live,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
@@ -106,6 +147,9 @@ class PracticeController extends ChangeNotifier {
   final Recorder _recorder;
   final Transcriber _transcriber;
   final SessionRepository _sessions;
+
+  /// 실시간 인식. 없으면 위치를 목소리 시간으로만 추정한다.
+  final LiveTranscriber? live;
   final DateTime Function() _now;
 
   PracticeState _state = const PracticeState();
@@ -116,11 +160,29 @@ class PracticeController extends ChangeNotifier {
   Future<void>? _finishing;
   bool _disposed = false;
 
+  // 녹음 한 번 동안의 실시간 상태
+  late ScriptTracker _tracker = ScriptTracker(script.body);
+  SpeedMeter _meter = SpeedMeter();
+  LiveSession? _session;
+  StreamSubscription<String>? _heardSub;
+  final List<Uint8List> _pendingPcm = [];
+  bool _liveReady = false;
+  bool _liveFailed = false;
+  bool _lagged = false;
+  int _lastHeardLength = 0;
+  Duration _voicedSinceGrowth = Duration.zero;
+  int _estimateBase = 0;
+  Duration _voicedEstimate = Duration.zero;
+  final List<double> _bars = [];
+  int _barsDone = 0;
+
   /// 인식과 원고 비교가 끝나면 완료된다 (인식을 시작하지 않았으면 null).
   Future<void>? transcription;
 
   /// 녹음이 끝나고 결과(시간·빠르기·억양)가 채워지면 완료된다.
   Future<void> get settled => _finishing ?? Future.value();
+
+  bool get _estimating => live == null || _liveFailed || _lagged || !_liveReady;
 
   void _set(PracticeState s) {
     _state = s;
@@ -130,26 +192,131 @@ class PracticeController extends ChangeNotifier {
   Future<void> start() async {
     if (_state.phase == PracticePhase.recording) return;
     _live = _LivePitch();
+    _tracker = ScriptTracker(script.body);
+    _meter = SpeedMeter();
+    _session = null;
+    _pendingPcm.clear();
+    _liveReady = false;
+    _liveFailed = false;
+    _lagged = false;
+    _lastHeardLength = 0;
+    _voicedSinceGrowth = Duration.zero;
+    _estimateBase = 0;
+    _voicedEstimate = Duration.zero;
+    _bars.clear();
+    _barsDone = 0;
     _finishing = null;
     transcription = null;
+
     final r = await _recorder.start();
     if (r == RecordStart.permissionDenied) {
       _set(const PracticeState(phase: PracticePhase.permissionDenied));
       return;
     }
     _frameSub = _recorder.pcmFrames.listen(_onFrames);
-    _set(const PracticeState(phase: PracticePhase.recording));
+    _publish(phase: PracticePhase.recording);
     // 5분 도달, 전화 수신 등으로 녹음이 저절로 끝나도 결과를 낸다.
     unawaited(_recorder.finished.then(_finish, onError: (_) {}));
+    // 모델을 올리는 몇 초 동안에도 녹음은 바로 시작하고, 위치는 추정으로 시작한다.
+    if (live != null) unawaited(_startLive());
+  }
+
+  Future<void> _startLive() async {
+    try {
+      final s = await live!.start();
+      if (_state.phase != PracticePhase.recording || _finishing != null) {
+        unawaited(s.stop().then<void>((_) {}, onError: (_) {}));
+        return;
+      }
+      _session = s;
+      for (final pcm in _pendingPcm) {
+        s.feed(pcm);
+      }
+      _pendingPcm.clear();
+      _heardSub = s.partials.listen(_onHeard, onError: (Object e) {
+        debugPrint('live recognition error: $e');
+        _lagged = true;
+        _estimateBase = _tracker.position;
+        _voicedEstimate = Duration.zero;
+      });
+      _liveReady = true;
+      _publish();
+    } catch (e) {
+      debugPrint('live recognition unavailable: $e');
+      _liveFailed = true;
+      _pendingPcm.clear();
+      _publish();
+    }
+  }
+
+  void _onHeard(String text) {
+    if (text.length > _lastHeardLength) {
+      _lastHeardLength = text.length;
+      _voicedSinceGrowth = Duration.zero;
+    }
+    if (!_lagged) _tracker.onHeard(text);
+    _publish();
   }
 
   void _onFrames(Float32List frame) {
     _live.add(frame);
-    _set(_state.copyWith(
-      elapsed: Duration(
-          microseconds:
-              _live.length * Duration.microsecondsPerSecond ~/ recordSampleRate),
+    final pcm = toPcm16(frame);
+    if (_session != null) {
+      _session!.feed(pcm);
+    } else if (live != null && !_liveFailed) {
+      _pendingPcm.add(pcm);
+    }
+
+    final frameDuration = Duration(
+        microseconds: frame.length * Duration.microsecondsPerSecond ~/ recordSampleRate);
+    if (dbfs(frame) > voiceDb) {
+      if (_estimating) {
+        _voicedEstimate += frameDuration;
+      } else {
+        _voicedSinceGrowth += frameDuration;
+        if (_voicedSinceGrowth > liveLagLimit) {
+          _lagged = true;
+          _estimateBase = _tracker.position;
+          _voicedEstimate = Duration.zero;
+        }
+      }
+    }
+    if (_estimating) {
+      // 실시간 인식이 멈춘 동안 잰 속도는 믿을 수 없으므로 보통 속도로 추정한다.
+      _tracker.onEstimate(
+          _estimateBase + (_voicedEstimate.inMicroseconds / 60e6 * defaultSpm).round());
+    }
+    _publish();
+  }
+
+  /// 녹음 중 화면 상태를 다시 만든다.
+  void _publish({PracticePhase? phase}) {
+    final elapsed = Duration(
+        microseconds: _live.length * Duration.microsecondsPerSecond ~/ recordSampleRate);
+    _meter.add(elapsed, _tracker.position);
+
+    final barSamples = recordSampleRate * waveformBar.inMilliseconds ~/ 1000;
+    while ((_barsDone + 1) * barSamples <= _live.length) {
+      _bars.add(dbfs(_live.slice(_barsDone * barSamples, (_barsDone + 1) * barSamples)));
+      _barsDone++;
+    }
+    if (_bars.length > waveformBars) _bars.removeRange(0, _bars.length - waveformBars);
+
+    final loudSamples = recordSampleRate * loudnessWindow.inMilliseconds ~/ 1000;
+    final recent = _live.slice((_live.length - loudSamples).clamp(0, _live.length), _live.length);
+    final spm = _meter.spm;
+
+    _set(PracticeState(
+      phase: phase ?? _state.phase,
+      elapsed: elapsed,
       livePitch: _live.points,
+      position: _tracker.position,
+      progress: _tracker.progress,
+      speed: spm == null ? null : speedLevel(spm),
+      loudness: loudLevel(dbfs(recent)),
+      waveform: List.unmodifiable(_bars),
+      estimating: _estimating,
+      remaining: remainingTime(_tracker.total - _tracker.position, spm),
     ));
   }
 
@@ -165,25 +332,51 @@ class PracticeController extends ChangeNotifier {
     _set(const PracticeState());
   }
 
-  Future<void> _finish(RecordResult r) =>
-      _finishing ??= _finishRecording(r);
+  Future<void> _finish(RecordResult r) => _finishing ??= _finishRecording(r);
+
+  /// 실시간 세션을 닫고 최종 글을 받는다. 세션이 없거나 오류면 null.
+  Future<String?> _closeLive(LiveSession? s) async {
+    await _heardSub?.cancel();
+    _heardSub = null;
+    if (s == null) return null;
+    try {
+      return await s.stop();
+    } catch (e) {
+      debugPrint('live recognition stop failed: $e');
+      return null;
+    }
+  }
 
   Future<void> _finishRecording(RecordResult r) async {
     await _frameSub?.cancel();
     _frameSub = null;
+    final s = _session;
+    _session = null;
+    // 실시간 인식이 끝까지 정상이었는지는 지금 정해진다.
+    final useLive = s != null && !_lagged && !_liveFailed;
+    final liveText = _closeLive(s);
 
-    final expected = r.elapsed.inMicroseconds * recordSampleRate ~/
-        Duration.microsecondsPerSecond;
+    final expected =
+        r.elapsed.inMicroseconds * recordSampleRate ~/ Duration.microsecondsPerSecond;
     final List<PitchPoint> pitch;
     if (_live.length >= expected * 0.95 && _live.length > 0) {
       pitch = _live.points;
     } else {
       final path = r.wavPath;
-      pitch = await Isolate.run(() => analyzePitch(readWav(path)));
+      List<PitchPoint> fromFile;
+      try {
+        fromFile = await Isolate.run(() => analyzePitch(readWav(path)));
+      } catch (e) {
+        // 녹음 파일을 읽지 못하면 목소리가 없던 것으로 처리한다 (앱이 멈추지 않게).
+        debugPrint('could not read recording: $e');
+        fromFile = const [];
+      }
+      pitch = fromFile;
     }
     final intonation = analyzeIntonation(pitch);
 
     if (intonation.noVoice) {
+      unawaited(liveText);
       final f = File(r.wavPath);
       if (f.existsSync()) f.deleteSync();
       _set(PracticeState(
@@ -222,21 +415,27 @@ class PracticeController extends ChangeNotifier {
       intonation: intonation,
       interrupted: r.interrupted,
     ));
-    transcription = _transcribe(session);
+    transcription = _transcribe(session, useLive ? liveText : null);
   }
 
-  Future<void> _transcribe(PracticeSession session) async {
+  /// [liveText]가 있으면(실시간 인식이 끝까지 정상) 그 글로 비교하고 파일을 다시 인식하지 않는다.
+  /// 없으면 녹음 파일 전체를 인식한다.
+  Future<void> _transcribe(PracticeSession session, Future<String?>? liveText) async {
+    Future<String> fromFile() async => (await _transcriber.transcribe(
+          session.audioPath,
+          onProgress: (v) => _set(_state.copyWith(transcribeProgress: v)),
+        ))
+            .text;
     try {
-      final t = await _transcriber.transcribe(
-        session.audioPath,
-        onProgress: (v) => _set(_state.copyWith(transcribeProgress: v)),
-      );
-      final marks = compareToScript(script.body, t.text);
-      await _sessions.updateMarks(session.id!, marks, transcript: t.text);
+      final text = liveText == null
+          ? await fromFile()
+          : (await liveText) ?? await fromFile();
+      final marks = compareToScript(script.body, text);
+      await _sessions.updateMarks(session.id!, marks, transcript: text);
       _set(_state.copyWith(
         resultStatus: ResultStatus.complete,
         marks: marks,
-        transcript: t.text,
+        transcript: text,
         transcribeProgress: 1,
       ));
     } catch (e) {
@@ -252,7 +451,7 @@ class PracticeController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _frameSub?.cancel();
-    // 녹음 중에 화면을 나가면 녹음을 멈춘다. finished 처리에서 기록이 저장된다.
+    // 녹음 중에 화면을 나가면 녹음을 멈춘다. finished 처리에서 기록이 저장되고 세션도 닫힌다.
     if (_state.phase == PracticePhase.recording) unawaited(_recorder.stop());
     super.dispose();
   }
@@ -276,6 +475,8 @@ class _LivePitch {
   int _frames = 0;
   final List<PitchPoint> _points = [];
   List<PitchPoint> get points => List.unmodifiable(_points);
+
+  Float32List slice(int from, int to) => Float32List.sublistView(_buf, from, to);
 
   void add(Float32List f) {
     if (length + f.length > _buf.length) {

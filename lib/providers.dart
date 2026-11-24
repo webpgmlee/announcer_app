@@ -5,6 +5,7 @@ import 'audio/recorder.dart';
 import 'data/models.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
+import 'speech/live_transcriber.dart';
 import 'speech/transcriber.dart';
 import 'speech/whisper_transcriber.dart';
 
@@ -20,5 +21,7 @@ final scriptsProvider = FutureProvider<List<Script>>(
 final recorderProvider =
     Provider<Recorder>((ref) => StreamRecorder(RecordPcmSource()));
 final transcriberProvider = Provider<Transcriber>((ref) => WhisperTranscriber());
+final liveTranscriberProvider =
+    Provider<LiveTranscriber?>((ref) => WhisperLiveTranscriber());
 final playerFactoryProvider =
     Provider<Player Function()>((ref) => JustAudioPlayer.new);

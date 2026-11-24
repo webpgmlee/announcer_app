@@ -4,16 +4,50 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:announcer_app/analysis/compare.dart';
+import 'package:announcer_app/analysis/live_metrics.dart';
 import 'package:announcer_app/audio/recorder.dart';
 import 'package:announcer_app/audio/wav.dart';
 import 'package:announcer_app/data/database.dart';
 import 'package:announcer_app/data/models.dart';
 import 'package:announcer_app/data/session_repository.dart';
 import 'package:announcer_app/practice/practice_controller.dart';
+import 'package:announcer_app/speech/live_transcriber.dart';
 import 'package:announcer_app/speech/transcriber.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+class FakeLiveSession implements LiveSession {
+  final _partials = StreamController<String>.broadcast();
+  int fedBytes = 0;
+  int stops = 0;
+  String finalText = '';
+
+  @override
+  void feed(Uint8List pcm16) => fedBytes += pcm16.length;
+
+  @override
+  Stream<String> get partials => _partials.stream;
+
+  void hear(String text) => _partials.add(text);
+
+  @override
+  Future<String> stop() async {
+    stops++;
+    return finalText;
+  }
+}
+
+class FakeLive implements LiveTranscriber {
+  bool fail = false;
+  final session = FakeLiveSession();
+
+  @override
+  Future<LiveSession> start() async {
+    if (fail) throw Exception('model');
+    return session;
+  }
+}
 
 class FakeRecorder implements Recorder {
   RecordStart startResult = RecordStart.ok;
@@ -226,5 +260,103 @@ void main() {
     await c.start();
     expect(c.state.phase, PracticePhase.recording);
     expect(recorder.starts, 2);
+  });
+
+  group('실시간 인식', () {
+    late FakeLive live;
+    late PracticeController lc;
+
+    setUp(() {
+      live = FakeLive();
+      lc = PracticeController(
+        script: script,
+        recorder: recorder,
+        transcriber: transcriber,
+        sessions: sessions,
+        live: live,
+      );
+    });
+    tearDown(() => lc.dispose());
+
+    void feed(Duration d, {double amp = 0.4}) {
+      final s = sine(d);
+      for (var i = 0; i < s.length; i++) {
+        s[i] = s[i] / 0.4 * amp;
+      }
+      for (var o = 0; o < s.length; o += 1600) {
+        recorder.frames.add(Float32List.sublistView(s, o, (o + 1600).clamp(0, s.length)));
+      }
+    }
+
+    test('들린 글이 오면 원고 위치와 진행률이 움직이고, 녹음 소리를 세션에 넣는다', () async {
+      await lc.start();
+      await pumpEventQueue();
+      feed(const Duration(seconds: 1));
+      live.session.hear('경제가 크게');
+      await pumpEventQueue();
+      expect(lc.state.position, 5); // 경제가(3) + 크게(2)
+      expect(lc.state.progress, closeTo(5 / 11, 1e-9));
+      expect(lc.state.estimating, isFalse);
+      expect(live.session.fedBytes, 16000 * 2);
+      expect(lc.state.waveform, isNotEmpty);
+      expect(lc.state.loudness, isNotNull);
+      recorder.result = recording(sine(const Duration(seconds: 1)));
+      await lc.stop();
+    });
+
+    test('목소리가 6초 넘게 들어오는데 들린 글이 늘지 않으면 추정으로 바꾼다', () async {
+      await lc.start();
+      await pumpEventQueue();
+      live.session.hear('경제가');
+      await pumpEventQueue();
+      feed(const Duration(seconds: 7));
+      await pumpEventQueue();
+      expect(lc.state.estimating, isTrue);
+      expect(lc.state.position, greaterThan(3));
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      await lc.stop();
+      expect(live.session.stops, 1);
+      expect(transcriber.calls, 1); // 늦어진 녹음은 파일 전체를 다시 인식
+    });
+
+    test('끝까지 정상이면 실시간 최종 글로 비교하고 파일을 다시 인식하지 않는다', () async {
+      await lc.start();
+      await pumpEventQueue();
+      feed(const Duration(seconds: 2));
+      live.session.hear('경제가 크게 성장했습니다');
+      live.session.finalText = '경제가 크게 생장했습니다';
+      await pumpEventQueue();
+      recorder.result = recording(sine(const Duration(seconds: 2)));
+      await lc.stop();
+      await lc.transcription;
+      expect(transcriber.calls, 0);
+      expect(live.session.stops, 1);
+      expect(lc.state.resultStatus, ResultStatus.complete);
+      expect(lc.state.marks!.map((m) => m.status),
+          [MarkStatus.matched, MarkStatus.matched, MarkStatus.misheard]);
+      expect((await sessions.forScript(1)).single.transcript, '경제가 크게 생장했습니다');
+    });
+
+    test('실시간 인식을 시작하지 못해도 녹음은 계속되고 위치는 추정한다 (Review Focus 1)', () async {
+      live.fail = true;
+      await lc.start();
+      await pumpEventQueue();
+      expect(lc.state.phase, PracticePhase.recording);
+      expect(lc.state.estimating, isTrue);
+      feed(const Duration(seconds: 2));
+      await pumpEventQueue();
+      expect(lc.state.position, greaterThan(0));
+      recorder.result = recording(sine(const Duration(seconds: 2)));
+      await lc.stop();
+      expect(transcriber.calls, 1);
+    });
+
+    test('남은 시간은 남은 음절 ÷ 속도 (속도를 모르면 350)', () async {
+      await lc.start();
+      await pumpEventQueue();
+      expect(lc.state.remaining, remainingTime(11, null));
+      recorder.result = recording(Float32List(16000));
+      await lc.stop();
+    });
   });
 }
