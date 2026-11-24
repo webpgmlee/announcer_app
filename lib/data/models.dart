@@ -54,6 +54,36 @@ class PracticeSession {
   final DateTime createdAt;
 }
 
+/// 메모 종류. 화면에는 [label]로 보인다.
+enum MemoKind {
+  pronunciation('발음'),
+  speed('속도'),
+  intonation('억양'),
+  emphasis('강조');
+
+  const MemoKind(this.label);
+  final String label;
+}
+
+/// 원고 어절 하나에 붙인 메모.
+class Memo {
+  const Memo({
+    this.id,
+    required this.scriptId,
+    required this.wordIndex,
+    required this.kind,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final int? id;
+  final int scriptId;
+  final int wordIndex;
+  final MemoKind kind;
+  final String text;
+  final DateTime createdAt;
+}
+
 // JSON 열 변환. 음높이는 [밀리초, Hz|null] 쌍으로 짧게 저장한다.
 String encodePitch(List<PitchPoint> pitch) =>
     jsonEncode([for (final p in pitch) [p.t.inMilliseconds, p.hz]]);

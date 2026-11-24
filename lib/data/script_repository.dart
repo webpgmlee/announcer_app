@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
+import '../analysis/script_layout.dart';
+import 'memo_repository.dart';
 import 'models.dart';
 import 'session_repository.dart';
 
@@ -41,9 +45,38 @@ class ScriptRepository {
         .toList();
   }
 
-  /// 원고와 그 연습 기록, 오디오 파일을 함께 지운다.
+  /// 원고와 그 연습 기록, 오디오 파일, 메모를 함께 지운다.
   Future<void> delete(int id) async {
     await _sessions.deleteForScript(id);
+    await MemoRepository(_db).deleteForScript(id);
     await _db.delete('scripts', where: 'id = ?', whereArgs: [id]);
   }
+
+  /// 원고의 끊어 읽기 표시. 아직 없으면(예전 원고, 새 원고) 문장부호로 만들어 저장한다.
+  Future<Map<int, Pause>> pauses(Script s) async {
+    final rows = await _db.query('scripts',
+        columns: ['pause_json'], where: 'id = ?', whereArgs: [s.id]);
+    final json = rows.isEmpty ? null : rows.single['pause_json'] as String?;
+    if (json != null) {
+      return {
+        for (final e in (jsonDecode(json) as Map<String, dynamic>).entries)
+          int.parse(e.key): Pause.values.byName(e.value as String),
+      };
+    }
+    final auto = autoPauses(scriptWords(s.body));
+    await setPauses(s.id!, auto);
+    return auto;
+  }
+
+  Future<void> setPauses(int scriptId, Map<int, Pause> pauses) => _db.update(
+        'scripts',
+        {
+          'pause_json': jsonEncode({
+            for (final e in pauses.entries)
+              if (e.value != Pause.none) '${e.key}': e.value.name,
+          }),
+        },
+        where: 'id = ?',
+        whereArgs: [scriptId],
+      );
 }

@@ -38,7 +38,7 @@ void main() {
   });
 
   test('30단위 넘게 앞으로 튀면 두 번 연속 같을 때만 받아들인다', () {
-    final long = List.filled(6, '경제가 크게 성장했습니다.').join(' ') + ' 마지막 문장입니다.';
+    final long = '${List.filled(6, '경제가 크게 성장했습니다.').join(' ')} 마지막 문장입니다.';
     final t = ScriptTracker(long);
     final far = '${List.filled(6, '경제가 크게 성장했습니다').join(' ')} 마지막';
     t.onHeard(far);
