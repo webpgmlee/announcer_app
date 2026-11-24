@@ -31,14 +31,20 @@ Uint8List wavHeader(int dataBytes) {
 
 /// -1~1 범위 샘플을 16kHz 모노 PCM16 WAV로 쓴다.
 void writeWav(String path, Float32List samples) {
+  final data = toPcm16(samples);
+  File(path)
+    ..writeAsBytesSync(wavHeader(data.length))
+    ..writeAsBytesSync(data, mode: FileMode.append);
+}
+
+/// -1~1 범위 샘플을 little-endian PCM16 바이트로 바꾼다 (실시간 인식 입력용).
+Uint8List toPcm16(Float32List samples) {
   final data = ByteData(samples.length * 2);
   for (var i = 0; i < samples.length; i++) {
     final v = (samples[i].clamp(-1.0, 1.0) * 32767).round();
     data.setInt16(i * 2, v, Endian.little);
   }
-  File(path)
-    ..writeAsBytesSync(wavHeader(data.lengthInBytes))
-    ..writeAsBytesSync(data.buffer.asUint8List(), mode: FileMode.append);
+  return data.buffer.asUint8List();
 }
 
 /// 16kHz 모노 PCM16 WAV를 -1~1 범위 샘플로 읽는다.
