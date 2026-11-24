@@ -2,10 +2,8 @@
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
-import 'data/models.dart';
-import 'screens/history_screen.dart';
-import 'screens/practice_screen.dart';
-import 'screens/script_list_screen.dart';
+import 'screens/home_shell.dart';
+import 'theme.dart';
 
 export 'providers.dart';
 
@@ -14,25 +12,9 @@ class AnnouncerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: '아나운서 연습',
+        title: 'My Diction',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1D4E89)),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1D4E89),
-            brightness: Brightness.dark,
-          ),
-        ),
-        home: const ScriptListScreen(onOpen: openPractice),
+        theme: buildTheme(),
+        home: const HomeShell(),
       );
 }
-
-void openPractice(BuildContext context, Script script) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => PracticeScreen(script: script, onOpenHistory: openHistory)));
-
-void openHistory(BuildContext context, Script script) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => HistoryScreen(script: script)));

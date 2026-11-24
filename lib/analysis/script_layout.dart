@@ -68,6 +68,20 @@ final _unit = RegExp(r'[\p{L}\p{N}]', unicode: true);
 List<String> readUnits(String text) =>
     readAloud(text).split('').where(_unit.hasMatch).toList();
 
+/// 읽은 위치([syllableOffsets] 단위)가 속한 줄 번호. 다 읽은 어절은 다음 어절로 넘어간다.
+int lineForPosition(List<ScriptLine> lines, List<int> offsets, int position) {
+  if (lines.isEmpty) return 0;
+  final wordCount = offsets.length - 1;
+  var word = 0;
+  while (word < wordCount - 1 && offsets[word + 1] <= position) {
+    word++;
+  }
+  for (var l = 0; l < lines.length; l++) {
+    if (word < lines[l].end) return l;
+  }
+  return lines.length - 1;
+}
+
 /// 어절 i가 시작하기 전까지의 읽는 소리 글자 수. 길이는 어절 수 + 1.
 List<int> syllableOffsets(List<String> words) {
   final out = [0];

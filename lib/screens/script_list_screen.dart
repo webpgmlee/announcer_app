@@ -28,6 +28,9 @@ class _ScriptListScreenState extends ConsumerState<ScriptListScreen> {
 
   Future<void> _delete(Script s) async {
     setState(() => _removed.add(s.id!));
+    if (ref.read(currentScriptProvider)?.id == s.id) {
+      ref.read(currentScriptProvider.notifier).select(null);
+    }
     await ref.read(scriptRepositoryProvider).delete(s.id!);
     ref.invalidate(scriptsProvider);
   }

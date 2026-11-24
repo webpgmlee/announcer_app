@@ -44,4 +44,17 @@ void main() {
     expect(syllableOffsets(['2026년,', '안녕']), [0, 6, 8]);
     expect(syllableOffsets([]), [0]);
   });
+
+  test('읽은 위치가 속한 줄을 찾는다 (다 읽은 어절은 다음 어절로 넘어감)', () {
+    final words = ['안녕하십니까.', '11월', '23일,', '9시'];
+    final lines = layoutLines(4, autoPauses(words)); // [0,1) [1,3) [3,4)
+    final offsets = syllableOffsets(words); // [0, 6, 9, 13, 15]
+    expect(lineForPosition(lines, offsets, 0), 0);
+    expect(lineForPosition(lines, offsets, 5), 0);
+    expect(lineForPosition(lines, offsets, 6), 1);
+    expect(lineForPosition(lines, offsets, 12), 1);
+    expect(lineForPosition(lines, offsets, 13), 2);
+    expect(lineForPosition(lines, offsets, 15), 2); // 끝까지 읽으면 마지막 줄
+    expect(lineForPosition(const [], [0], 0), 0);
+  });
 }

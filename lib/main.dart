@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'app.dart';
 import 'data/database.dart';
+import 'data/memo_repository.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
 
@@ -16,6 +17,7 @@ Future<void> main() async {
     overrides: [
       sessionRepositoryProvider.overrideWithValue(sessions),
       scriptRepositoryProvider.overrideWithValue(ScriptRepository(db, sessions)),
+      memoRepositoryProvider.overrideWithValue(MemoRepository(db)),
     ],
     child: const AnnouncerApp(),
   ));
