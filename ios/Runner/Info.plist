@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>아나운서 연습</string>
+	<string>My Diction</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>연습을 녹음하려면 마이크가 필요해요. 녹음은 폰 밖으로 나가지 않아요.</string>
 	<key>CFBundleExecutable</key>

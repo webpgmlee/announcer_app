@@ -2,7 +2,7 @@
     <!-- 연습 녹음. 녹음은 폰 밖으로 보내지 않는다. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
-        android:label="아나운서 연습"
+        android:label="My Diction"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
