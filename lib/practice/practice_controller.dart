@@ -10,6 +10,7 @@ import '../analysis/karaoke.dart';
 import '../analysis/live_metrics.dart';
 import '../analysis/pitch.dart';
 import '../analysis/script_layout.dart';
+import '../analysis/syllable_rate.dart';
 import '../analysis/syllables.dart';
 import '../audio/recorder.dart';
 import '../audio/wav.dart';
@@ -48,6 +49,7 @@ class PracticeState {
     this.loudness = LoudLevel.quiet,
     this.waveform = const [],
     this.remaining = Duration.zero,
+    this.paceFeedback = PaceFeedback.none,
     this.resultStatus,
     this.session,
     this.intonation,
@@ -89,6 +91,9 @@ class PracticeState {
   /// 남은 원고를 지금 속도로 읽는 데 걸릴 시간.
   final Duration remaining;
 
+  /// 진행 속도보다 빠르거나 느리게 읽고 있으면 알린다 (진행 중에만).
+  final PaceFeedback paceFeedback;
+
   final ResultStatus? resultStatus;
   final PracticeSession? session;
   final IntonationReport? intonation;
@@ -126,6 +131,7 @@ class PracticeState {
         loudness: loudness,
         waveform: waveform,
         remaining: remaining,
+        paceFeedback: paceFeedback,
         resultStatus: resultStatus ?? this.resultStatus,
         session: session,
         intonation: intonation,
@@ -189,6 +195,9 @@ class PracticeController extends ChangeNotifier {
   bool _disposed = false;
   late KaraokeTimeline _timeline = KaraokeTimeline(_words, _pauses, _pace);
   bool _autoStopped = false;
+  SyllableRateMeter _rate = SyllableRateMeter();
+  PaceAdvisor _advisor = PaceAdvisor(pace: defaultPace);
+  PaceFeedback _feedback = PaceFeedback.none;
   final List<double> _bars = [];
   int _barsDone = 0;
 
@@ -214,6 +223,9 @@ class PracticeController extends ChangeNotifier {
     _live = _LivePitch();
     _timeline = KaraokeTimeline(_words, _pauses, _pace);
     _autoStopped = false;
+    _rate = SyllableRateMeter();
+    _advisor = PaceAdvisor(pace: _pace);
+    _feedback = PaceFeedback.none;
     _bars.clear();
     _barsDone = 0;
     _finishing = null;
@@ -232,6 +244,12 @@ class PracticeController extends ChangeNotifier {
 
   void _onFrames(Float32List frame) {
     _live.add(frame);
+    // 진행이 시작된 뒤의 소리로만 말 빠르기를 잰다 (카운트다운 동안은 재지 않음).
+    final now = _clock - countdownLength;
+    if (now >= Duration.zero) {
+      _rate.add(frame);
+      _feedback = _advisor.update(now, _rate.spm);
+    }
     _publish();
     // 마지막 문장이 끝나고 잠시 뒤 녹음을 멈춘다.
     final t = _clock - countdownLength;
@@ -276,6 +294,7 @@ class PracticeController extends ChangeNotifier {
       loudness: loudLevel(dbfs(recent)),
       waveform: List.unmodifiable(_bars),
       remaining: f.remaining,
+      paceFeedback: countdown == null ? _feedback : PaceFeedback.none,
     ));
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../analysis/karaoke.dart';
 import '../analysis/live_metrics.dart';
+import '../analysis/syllable_rate.dart';
 import '../theme.dart';
 
 /// 녹음 중이면 빨갛게 빛나는 ON AIR 표시.
@@ -334,5 +335,44 @@ class CountdownBadge extends StatelessWidget {
         ),
         child: Text('$value',
             style: const TextStyle(fontSize: 48, color: Palette.red, fontWeight: FontWeight.w300)),
+      );
+}
+
+/// 진행 속도보다 빠르거나 느리게 읽을 때 원고 위에 잠깐 띄우는 알림.
+class PaceBadge extends StatelessWidget {
+  const PaceBadge({super.key, required this.feedback});
+  final PaceFeedback feedback;
+
+  static const _fast = Color(0xFFF08C00); // 주황
+  static const _slow = Palette.blue;
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: switch (feedback) {
+          PaceFeedback.none => const SizedBox.shrink(key: ValueKey('pace-none')),
+          PaceFeedback.fast => _pill('빨라요', Icons.fast_forward_rounded, _fast),
+          PaceFeedback.slow => _pill('느려요', Icons.slow_motion_video_rounded, _slow),
+        },
+      );
+
+  Widget _pill(String text, IconData icon, Color color) => Container(
+        key: ValueKey(text),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 12)],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(text,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          ],
+        ),
       );
 }

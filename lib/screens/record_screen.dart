@@ -205,6 +205,9 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
                 ),
               ),
               if (recording && s.countdown != null) CountdownBadge(value: s.countdown!),
+              // 진행 속도보다 빠르거나 느리게 읽으면 원고 위에 잠깐 알린다.
+              if (recording)
+                Positioned(top: 4, child: PaceBadge(feedback: s.paceFeedback)),
             ],
           ),
         ),

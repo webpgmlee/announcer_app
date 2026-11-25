@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:announcer_app/analysis/compare.dart';
 import 'package:announcer_app/analysis/karaoke.dart';
 import 'package:announcer_app/analysis/script_layout.dart';
+import 'package:announcer_app/analysis/syllable_rate.dart';
 import 'package:announcer_app/audio/recorder.dart';
 import 'package:announcer_app/audio/wav.dart';
 import 'package:announcer_app/data/database.dart';
@@ -326,6 +327,79 @@ void main() {
       expect(c.state.wordFill, 1);
       recorder.result = recording(sine(const Duration(seconds: 4)));
       await c.stop();
+    });
+  });
+
+  group('빠르기 알림', () {
+    // 자동 정지가 오지 않도록 긴 원고 (약 20초)
+    final long = Script(
+        id: 1,
+        title: '긴 원고',
+        body: List.filled(10, '경제가 크게 성장했습니다').join(' '),
+        createdAt: DateTime(2026));
+    late PracticeController lc;
+    setUp(() => lc = PracticeController(
+        script: long, recorder: recorder, transcriber: transcriber, sessions: sessions));
+    tearDown(() => lc.dispose());
+
+    /// [spm] 빠르기의 음절 같은 소리 덩어리를 0.1초씩 넣는다.
+    void feedBursts(double spm, Duration d) {
+      final n = 16000 * d.inMilliseconds ~/ 1000;
+      final period = 16000 * 60 / spm;
+      final s = Float32List.fromList(List.generate(n, (i) {
+        final phase = (i % period) / period;
+        final env = phase < 0.6 ? sin(pi * phase / 0.6) : 0.0;
+        return 0.3 * env * sin(2 * pi * 180 * i / 16000);
+      }));
+      for (var o = 0; o < s.length; o += 1600) {
+        recorder.frames.add(Float32List.sublistView(s, o, min(o + 1600, s.length)));
+      }
+    }
+
+    Future<void> run(double spm) async {
+      await lc.start();
+      recorder.frames.add(Float32List(16000 * 3)); // 카운트다운 동안 조용히
+      feedBursts(spm, const Duration(seconds: 4));
+      await pumpEventQueue();
+    }
+
+    test('진행 속도보다 빠르게 읽으면 빨라요', () async {
+      await run(480);
+      expect(lc.state.paceFeedback, PaceFeedback.fast);
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      await lc.stop();
+    });
+
+    test('진행 속도보다 느리게 읽으면 느려요', () async {
+      await run(240);
+      expect(lc.state.paceFeedback, PaceFeedback.slow);
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      await lc.stop();
+    });
+
+    test('진행 속도와 비슷하면 아무것도 띄우지 않는다', () async {
+      await run(350);
+      expect(lc.state.paceFeedback, PaceFeedback.none);
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      await lc.stop();
+    });
+
+    test('카운트다운 중에는 소리가 커도 알리지 않는다', () async {
+      await lc.start();
+      feedBursts(600, const Duration(milliseconds: 2900));
+      await pumpEventQueue();
+      expect(lc.state.countdown, isNotNull);
+      expect(lc.state.paceFeedback, PaceFeedback.none);
+      recorder.result = recording(sine(const Duration(seconds: 3)));
+      await lc.stop();
+    });
+
+    test('바꾼 진행 속도를 기준으로 판단한다', () async {
+      lc.setPace(480);
+      await run(480);
+      expect(lc.state.paceFeedback, PaceFeedback.none);
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      await lc.stop();
     });
   });
 }
