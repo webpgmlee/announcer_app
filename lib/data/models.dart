@@ -13,6 +13,7 @@ class Script {
     this.category,
     this.difficulty,
     this.isPremium = false,
+    this.folderId,
     required this.createdAt,
   });
 
@@ -22,6 +23,17 @@ class Script {
   final String? category;
   final int? difficulty;
   final bool isPremium;
+
+  /// 들어 있는 폴더. null이면 폴더 없음.
+  final int? folderId;
+  final DateTime createdAt;
+}
+
+/// 원고를 묶는 폴더 (폴더 안의 폴더는 없다).
+class Folder {
+  const Folder({this.id, required this.name, required this.createdAt});
+  final int? id;
+  final String name;
   final DateTime createdAt;
 }
 

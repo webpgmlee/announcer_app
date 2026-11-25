@@ -23,6 +23,7 @@ class ScriptRepository {
       'category': s.category,
       'difficulty': s.difficulty,
       'is_premium': s.isPremium ? 1 : 0,
+      'folder_id': s.folderId,
       'created_at': s.createdAt.millisecondsSinceEpoch,
     });
   }
@@ -39,6 +40,7 @@ class ScriptRepository {
               category: r['category'] as String?,
               difficulty: r['difficulty'] as int?,
               isPremium: r['is_premium'] == 1,
+              folderId: r['folder_id'] as int?,
               createdAt:
                   DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int),
             ))
@@ -79,4 +81,36 @@ class ScriptRepository {
         where: 'id = ?',
         whereArgs: [scriptId],
       );
+
+  /// 원고를 다른 폴더로 옮긴다. [folderId]가 null이면 폴더 없음.
+  Future<void> moveToFolder(int scriptId, int? folderId) => _db.update(
+      'scripts', {'folder_id': folderId},
+      where: 'id = ?', whereArgs: [scriptId]);
+
+  /// 원고를 복제한다. 제목 뒤에 "(복사본)"을 붙이고 끊어 읽기 표시와 메모를 복사한다.
+  /// 녹음 기록은 복사하지 않는다. 새 원고 번호를 돌려준다.
+  Future<int> duplicate(Script s) async {
+    final pauseMarks = await pauses(s);
+    final id = await add(Script(
+      title: '${s.title} (복사본)',
+      body: s.body,
+      category: s.category,
+      difficulty: s.difficulty,
+      isPremium: s.isPremium,
+      folderId: s.folderId,
+      createdAt: DateTime.now(),
+    ));
+    await setPauses(id, pauseMarks);
+    final memos = MemoRepository(_db);
+    for (final m in (await memos.forScript(s.id!)).values) {
+      await memos.save(Memo(
+        scriptId: id,
+        wordIndex: m.wordIndex,
+        kind: m.kind,
+        text: m.text,
+        createdAt: m.createdAt,
+      ));
+    }
+    return id;
+  }
 }

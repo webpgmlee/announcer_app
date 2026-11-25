@@ -47,6 +47,12 @@ class SessionRepository {
     return rows.map(_fromRow).toList();
   }
 
+  /// 모든 원고의 녹음 기록, 최신순.
+  Future<List<PracticeSession>> all() async {
+    final rows = await _db.query('sessions', orderBy: 'created_at DESC, id DESC');
+    return rows.map(_fromRow).toList();
+  }
+
   /// 기록과 오디오 파일을 함께 지운다.
   Future<void> delete(int id) async {
     final rows = await _db.query('sessions',

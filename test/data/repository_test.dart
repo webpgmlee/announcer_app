@@ -155,8 +155,13 @@ void main() {
   test('스키마 v1 DB에 데이터를 넣고 v2로 열어도 데이터 유지 (Review Focus 5)', () async {
     final path = p.join(tmp.path, 'upgrade.db');
     final v1 = await openAppDatabase(path, factory: databaseFactoryFfi, version: 1);
-    final s1 = ScriptRepository(v1, SessionRepository(v1));
-    final id = await s1.add(script('예전 원고'));
+    // 옛 DB에는 옛 구조 그대로 넣는다 (최신 저장 코드는 새 칸까지 쓴다).
+    final id = await v1.insert('scripts', {
+      'title': '제목',
+      'body': '예전 원고',
+      'is_premium': 0,
+      'created_at': DateTime(2026, 11, 23, 9).millisecondsSinceEpoch,
+    });
     await v1.insert('sessions', {
       'script_id': id,
       'audio_path': 'old.wav',

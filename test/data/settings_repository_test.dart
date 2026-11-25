@@ -13,9 +13,9 @@ void main() {
       db = await openAppDatabase(inMemoryDatabasePath, factory: databaseFactoryFfi));
   tearDown(() => db.close());
 
-  test('스키마 버전은 4', () async {
-    expect(currentSchemaVersion, 4);
-    expect(await db.getVersion(), 4);
+  test('스키마 버전은 4 이상 (설정 테이블이 생긴 버전)', () async {
+    expect(currentSchemaVersion, greaterThanOrEqualTo(4));
+    expect(await db.getVersion(), currentSchemaVersion);
   });
 
   test('저장한 적이 없으면 기본 350', () async {
