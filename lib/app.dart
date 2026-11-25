@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_shell.dart';
+import 'screens/splash_screen.dart';
 import 'theme.dart';
 
 export 'providers.dart';
@@ -15,6 +16,6 @@ class AnnouncerApp extends StatelessWidget {
         title: 'My Diction',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
-        home: const HomeShell(),
+        home: const SplashScreen(next: HomeShell()),
       );
 }

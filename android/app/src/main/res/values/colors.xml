@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#F5F3EE</color>
+    <!-- 앱이 뜨기 전 화면과 창 배경: 앱 바탕과 같은 미색 -->
+    <color name="splash_background">#F5F3EE</color>
 </resources>
