@@ -67,4 +67,22 @@ void main() {
   test('숫자만 있는 원고도 음절 수가 0보다 크다 (Review Focus 4)', () {
     expect(countSyllables('2026 1 15'), greaterThan(0));
   });
+
+  group('숫자 뒤 단위', () {
+    test('길이·무게 단위는 우리말 이름으로 읽는다', () {
+      expect(readAloud('100mm'), '백밀리미터');
+      expect(readAloud('30cm'), '삼십센티미터');
+      expect(readAloud('5km'), '오킬로미터');
+      expect(readAloud('2kg'), '이킬로그램');
+      expect(readAloud('3.5km'), '삼점오킬로미터');
+      expect(readAloud('10 mm'), '십 밀리미터');
+    });
+    test('숫자 뒤가 아니면 알파벳으로 읽는다', () {
+      expect(readAloud('mm'), '엠엠');
+      expect(readAloud('KBS'), '케이비에스');
+    });
+    test('단위가 아닌 영어는 그대로 알파벳', () {
+      expect(readAloud('5G'), '오지');
+    });
+  });
 }

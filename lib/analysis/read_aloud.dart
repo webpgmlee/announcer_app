@@ -3,11 +3,16 @@
 /// - 숫자는 한자어 수사(일, 십, 백, 천, 만, 억, 조)로 읽고, 소수점은 "점"으로 읽는다.
 /// - 영어 알파벳은 글자 이름(A=에이 … Z=지)으로 읽는다.
 /// - 기호: % → 퍼센트, ℃ → 도, ~ → 에서
+/// - 숫자 바로 뒤의 단위(mm, cm, km, kg, mg, ml)는 우리말 이름으로 읽는다 (100mm → 백밀리미터).
 /// - 고유어 수사(세 명, 다섯 시)는 v1 범위 밖이다.
 String readAloud(String text) {
   // 천 단위 쉼표(1,500)를 먼저 지운다.
   var s = text.replaceAllMapped(
       RegExp(r'(?<=\d),(?=\d{3})'), (_) => '');
+  // 숫자 뒤 단위는 알파벳으로 읽기 전에 바꾼다.
+  s = s.replaceAllMapped(
+      RegExp(r'(\d)(\s?)(mm|cm|km|kg|mg|ml)(?![A-Za-z])'),
+      (m) => '${m[1]}${m[2]}${_units[m[3]]}');
   s = s.replaceAllMapped(RegExp(r'\d+(?:\.\d+)?'), (m) => _readNumber(m[0]!));
   s = s.replaceAllMapped(
       RegExp(r'[A-Za-z]'), (m) => _letters[m[0]!.toUpperCase()]!);
@@ -16,6 +21,15 @@ String readAloud(String text) {
 }
 
 const _symbols = {'%': '퍼센트', '℃': '도', '~': '에서'};
+
+const _units = {
+  'mm': '밀리미터',
+  'cm': '센티미터',
+  'km': '킬로미터',
+  'kg': '킬로그램',
+  'mg': '밀리그램',
+  'ml': '밀리리터',
+};
 
 const _letters = {
   'A': '에이', 'B': '비', 'C': '씨', 'D': '디', 'E': '이', 'F': '에프',
