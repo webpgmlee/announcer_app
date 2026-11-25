@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 
-/// 시작 화면 전체 길이: 페이드인 0.7초, 머무름 0.8초, 페이드아웃 0.7초.
-const splashDuration = Duration(milliseconds: 2200);
-const _fadeIn = 700.0;
-const _hold = 800.0;
+/// 시작 화면 전체 길이: 페이드인 0.8초, 또렷하게 머무름 2.5초, 페이드아웃 0.7초.
+const splashDuration = Duration(milliseconds: 4000);
+const _fadeIn = 800.0;
+const _hold = 2500.0;
 const _fadeOut = 700.0;
 
 /// 앱을 켜면 아이콘과 "My Diction"이 나타났다 사라진 뒤 [next]로 넘어간다.

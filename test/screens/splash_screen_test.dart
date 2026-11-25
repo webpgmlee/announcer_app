@@ -27,9 +27,18 @@ void main() {
     expect(find.text('메인 화면'), findsNothing);
   });
 
-  testWidgets('잠시 머문 뒤 페이드아웃되고 메인 화면으로 넘어간다', (tester) async {
+  testWidgets('또렷하게 2.5초 머문다', (tester) async {
     await pump(tester);
-    await tester.pump(const Duration(milliseconds: 1900));
+    await tester.pump(const Duration(milliseconds: 800)); // 다 나타남
+    expect(opacityOfTitle(tester), closeTo(1, 0.01));
+    await tester.pump(const Duration(milliseconds: 2500)); // 0.8 + 2.5초
+    expect(opacityOfTitle(tester), closeTo(1, 0.01));
+    expect(find.text('메인 화면'), findsNothing);
+  });
+
+  testWidgets('머문 뒤 페이드아웃되고 메인 화면으로 넘어간다', (tester) async {
+    await pump(tester);
+    await tester.pump(const Duration(milliseconds: 3600));
     expect(opacityOfTitle(tester), lessThan(0.6)); // 사라지는 중
     await tester.pumpAndSettle();
     expect(find.text('My Diction'), findsNothing);
@@ -44,7 +53,7 @@ void main() {
     expect(find.text('메인 화면'), findsOneWidget);
   });
 
-  test('전체 길이는 약 2초', () {
-    expect(splashDuration, const Duration(milliseconds: 2200));
+  test('전체 길이는 4초 (나타남 0.8 + 머무름 2.5 + 사라짐 0.7)', () {
+    expect(splashDuration, const Duration(milliseconds: 4000));
   });
 }
