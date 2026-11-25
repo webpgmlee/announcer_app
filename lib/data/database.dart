@@ -2,7 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 /// 현재 DB 스키마 버전. 올릴 때는 [_migrations]에 단계를 추가만 한다.
 /// 테이블을 지우거나 다시 만들지 않는다 (기록 보존, 스펙 4장).
-const currentSchemaVersion = 3;
+const currentSchemaVersion = 4;
 
 /// _migrations[i]는 버전 i+1로 올리는 단계다.
 final List<Future<void> Function(Database db)> _migrations = [
@@ -48,6 +48,10 @@ final List<Future<void> Function(Database db)> _migrations = [
         created_at INTEGER NOT NULL,
         UNIQUE (script_id, word_index)
       )''');
+  },
+  // v4: 앱 설정 (진행 속도 등)
+  (db) async {
+    await db.execute('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   },
 ];
 

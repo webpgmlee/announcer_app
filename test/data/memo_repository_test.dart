@@ -31,9 +31,9 @@ void main() {
   Memo memo(int scriptId, int word, String text, [MemoKind kind = MemoKind.pronunciation]) =>
       Memo(scriptId: scriptId, wordIndex: word, kind: kind, text: text, createdAt: DateTime(2026));
 
-  test('스키마 버전은 3', () async {
-    expect(currentSchemaVersion, 3);
-    expect(await db.getVersion(), 3);
+  test('스키마 버전은 3 이상 (메모 테이블이 생긴 버전)', () async {
+    expect(currentSchemaVersion, greaterThanOrEqualTo(3));
+    expect(await db.getVersion(), currentSchemaVersion);
   });
 
   test('끊어 읽기 표시: 처음 열면 자동으로 만들어 저장한다', () async {
