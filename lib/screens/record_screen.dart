@@ -3,7 +3,6 @@ import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../analysis/live_metrics.dart';
 import '../analysis/script_layout.dart';
 import '../data/models.dart';
 import '../practice/practice_controller.dart';
@@ -37,9 +36,17 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
       recorder: ref.read(recorderProvider),
       transcriber: ref.read(transcriberProvider),
       sessions: ref.read(sessionRepositoryProvider),
-      live: ref.read(liveTranscriberProvider),
     );
     _c.addListener(_onChange);
+    // 저장해 둔 진행 속도를 불러온다.
+    ref.read(settingsRepositoryProvider).pace().then((p) {
+      if (mounted) _c.setPace(p);
+    });
+  }
+
+  Future<void> _changePace(double v) async {
+    _c.setPace(v);
+    await ref.read(settingsRepositoryProvider).setPace(_c.pace);
   }
 
   void _onChange() {
@@ -163,28 +170,43 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
   }
 
   Widget _body(ScriptDetails d, PracticeState s, bool recording) {
-    final lines = layoutLines(d.words.length, d.pauses);
+    // 녹음을 시작할 때 쓸 끊어 읽기 표시를 컨트롤러에 알려 둔다 (남은 시간도 다시 계산됨).
+    if (!recording && !identical(_c.pauses, d.pauses)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _c.state.phase != PracticePhase.recording) _c.pauses = d.pauses;
+      });
+    }
     final offsets = syllableOffsets(d.words);
     final total = offsets.last;
     final dots = [
       for (final i in d.stats.wrong.keys)
         if (d.stats.isFrequent(i) && total > 0) offsets[i] / total,
     ];
-    final remaining = recording ? s.remaining : remainingTime(total - s.position, null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: Prompter(
-            words: d.words,
-            pauses: d.pauses,
-            memos: d.memos,
-            stats: d.stats,
-            currentLine: lineForPosition(lines, offsets, s.position),
-            editable: !recording,
-            onTapGap: (i) => _cyclePause(d, i),
-            onLongPressWord: (i) => _editMemo(d, i),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: Prompter(
+                  words: d.words,
+                  pauses: d.pauses,
+                  memos: d.memos,
+                  stats: d.stats,
+                  currentSentence: s.sentence,
+                  karaoke: recording && s.karaoke,
+                  activeWord: s.word,
+                  wordFill: s.wordFill,
+                  editable: !recording,
+                  onTapGap: (i) => _cyclePause(d, i),
+                  onLongPressWord: (i) => _editMemo(d, i),
+                ),
+              ),
+              if (recording && s.countdown != null) CountdownBadge(value: s.countdown!),
+            ],
           ),
         ),
         Wrap(
@@ -192,10 +214,7 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
           spacing: 8,
           runSpacing: 6,
           children: [
-            LevelChips(
-                label: '속도',
-                options: const ['느림', '적당', '빠름'],
-                selected: recording ? speedIndex(s.speed) : null),
+            PaceControl(pace: _c.pace, enabled: !recording, onChanged: _changePace),
             LevelChips(
                 label: '크기',
                 options: const ['작게', '적당', '크게'],
@@ -210,18 +229,13 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
             Text('대본 ${(s.progress * 100).round()}%',
                 style: const TextStyle(color: Palette.muted)),
             const Spacer(),
-            Text('남은 ${formatDuration(remaining)}', style: const TextStyle(color: Palette.faint)),
+            Text('남은 ${formatDuration(s.remaining)}',
+                style: const TextStyle(color: Palette.faint)),
           ],
         ),
         const SizedBox(height: 6),
         ScriptProgressBar(progress: s.progress, dots: dots),
-        SizedBox(
-          height: 20,
-          child: recording && s.estimating
-              ? const Text('위치를 추정하는 중',
-                  style: TextStyle(fontSize: 12, color: Palette.faint))
-              : null,
-        ),
+        const SizedBox(height: 14),
         TapeControls(recording: recording, onPressed: _toggle),
       ],
     );

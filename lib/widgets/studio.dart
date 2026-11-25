@@ -3,6 +3,7 @@ import 'dart:math';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
+import '../analysis/karaoke.dart';
 import '../analysis/live_metrics.dart';
 import '../theme.dart';
 
@@ -259,4 +260,79 @@ class _ReelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 노래방식 진행 속도 조절: − 350 + (1분당 음절). 녹음 중에는 꺼진다.
+class PaceControl extends StatelessWidget {
+  const PaceControl({
+    super.key,
+    required this.pace,
+    required this.enabled,
+    required this.onChanged,
+  });
+  final double pace;
+  final bool enabled;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? Palette.ink : Palette.faint;
+    Widget button(String key, IconData icon, double delta, bool can) => SizedBox(
+          width: 32,
+          height: 32,
+          child: IconButton(
+            key: ValueKey(key),
+            padding: EdgeInsets.zero,
+            iconSize: 18,
+            color: color,
+            onPressed: enabled && can ? () => onChanged(pace + delta) : null,
+            icon: Icon(icon),
+          ),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('속도', style: TextStyle(color: Palette.muted, fontSize: 13)),
+        const SizedBox(width: 6),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Palette.line),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              button('pace-minus', Icons.remove, -paceStep, pace > minPace),
+              Text('${pace.round()}',
+                  style: TextStyle(fontSize: 15, color: color, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 3),
+              const Text('음절/분', style: TextStyle(fontSize: 11, color: Palette.muted)),
+              button('pace-plus', Icons.add, paceStep, pace < maxPace),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 진행 시작 전 3-2-1 숫자.
+class CountdownBadge extends StatelessWidget {
+  const CountdownBadge({super.key, required this.value});
+  final int value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey('countdown'),
+        width: 96,
+        height: 96,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Palette.background.withValues(alpha: 0.92),
+          shape: BoxShape.circle,
+          border: Border.all(color: Palette.red, width: 2),
+        ),
+        child: Text('$value',
+            style: const TextStyle(fontSize: 48, color: Palette.red, fontWeight: FontWeight.w300)),
+      );
 }

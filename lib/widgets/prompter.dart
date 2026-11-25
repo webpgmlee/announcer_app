@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../analysis/error_stats.dart';
+import '../analysis/karaoke.dart';
 import '../analysis/script_layout.dart';
 import '../data/models.dart';
 import '../theme.dart';
@@ -15,7 +16,10 @@ class Prompter extends StatefulWidget {
     required this.pauses,
     required this.memos,
     required this.stats,
-    this.currentLine = 0,
+    this.currentSentence = 0,
+    this.karaoke = false,
+    this.activeWord = 0,
+    this.wordFill = 0,
     this.editable = false,
     this.onTapGap,
     this.onLongPressWord,
@@ -26,8 +30,13 @@ class Prompter extends StatefulWidget {
   final Map<int, Memo> memos;
   final WordErrorStats stats;
 
-  /// 지금 읽는 줄 번호 ([layoutLines] 기준).
-  final int currentLine;
+  /// 지금 문장 번호 ([sentencesOf] 기준). 이 문장의 줄들을 크게 보여준다.
+  final int currentSentence;
+
+  /// 노래방식 진행 중이면 지금 문장을 [activeWord]의 [wordFill]만큼까지 채운다.
+  final bool karaoke;
+  final int activeWord;
+  final double wordFill;
 
   /// 녹음 중이 아닐 때만 표시를 고칠 수 있다.
   final bool editable;
@@ -43,15 +52,33 @@ class _PrompterState extends State<Prompter> {
 
   GlobalKey _keyFor(int line) => _lineKeys.putIfAbsent(line, GlobalKey.new);
 
+  /// 각 줄이 속한 문장 번호.
+  List<int> _sentenceOfLines(List<ScriptLine> lines) {
+    final sentences = sentencesOf(widget.words.length, widget.pauses);
+    var s = 0;
+    return [
+      for (final l in lines)
+        () {
+          while (s < sentences.length - 1 && l.start >= sentences[s].end) {
+            s++;
+          }
+          return s;
+        }(),
+    ];
+  }
+
   @override
   void didUpdateWidget(Prompter old) {
     super.didUpdateWidget(old);
-    if (old.currentLine != widget.currentLine) {
+    if (old.currentSentence != widget.currentSentence) {
+      // 지금 문장의 첫 줄이 화면 가운데쯤 오도록 부드럽게 넘긴다.
+      final lines = layoutLines(widget.words.length, widget.pauses);
+      final first = _sentenceOfLines(lines).indexOf(widget.currentSentence);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = _lineKeys[widget.currentLine]?.currentContext;
+        final ctx = _lineKeys[first]?.currentContext;
         if (ctx != null && mounted) {
           Scrollable.ensureVisible(ctx,
-              alignment: 0.35, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+              alignment: 0.3, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
         }
       });
     }
@@ -60,6 +87,7 @@ class _PrompterState extends State<Prompter> {
   @override
   Widget build(BuildContext context) {
     final lines = layoutLines(widget.words.length, widget.pauses);
+    final sentenceOf = _sentenceOfLines(lines);
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
@@ -70,9 +98,9 @@ class _PrompterState extends State<Prompter> {
               key: _keyFor(l),
               index: l,
               line: lines[l],
-              state: l < widget.currentLine
+              state: sentenceOf[l] < widget.currentSentence
                   ? _LineState.past
-                  : l == widget.currentLine
+                  : sentenceOf[l] == widget.currentSentence
                       ? _LineState.current
                       : _LineState.next,
               prompter: widget,
@@ -82,6 +110,10 @@ class _PrompterState extends State<Prompter> {
     );
   }
 }
+
+/// 노래방 채우기 색: 읽은 글자는 진하게, 아직 안 읽은 글자는 흐리게.
+const filledColor = Palette.ink;
+const unfilledColor = Color(0xFFC9C5BE);
 
 enum _LineState { past, current, next }
 
@@ -134,7 +166,11 @@ class _Line extends StatelessWidget {
               runSpacing: 4,
               children: [
                 for (var i = line.start; i < line.end; i++) ...[
-                  _Word(index: i, style: style, prompter: prompter),
+                  _Word(
+                      index: i,
+                      style: style,
+                      prompter: prompter,
+                      current: state == _LineState.current),
                   _Gap(index: i, fontSize: size, prompter: prompter),
                 ],
               ],
@@ -147,10 +183,32 @@ class _Line extends StatelessWidget {
 }
 
 class _Word extends StatelessWidget {
-  const _Word({required this.index, required this.style, required this.prompter});
+  const _Word(
+      {required this.index, required this.style, required this.prompter, required this.current});
   final int index;
   final TextStyle style;
   final Prompter prompter;
+
+  /// 지금 문장에 속한 어절이면 true (노래방 채우기 대상).
+  final bool current;
+
+  Widget _text() {
+    final w = prompter.words[index];
+    if (!current || !prompter.karaoke) return Text(w, style: style);
+    final filled = style.copyWith(color: filledColor);
+    final unfilled = style.copyWith(color: unfilledColor);
+    if (index < prompter.activeWord) return Text(w, style: filled);
+    if (index > prompter.activeWord) return Text(w, style: unfilled);
+    final n = (prompter.wordFill.clamp(0.0, 1.0) * w.length).round();
+    return Text.rich(
+      key: ValueKey('fill-$index'),
+      TextSpan(children: [
+        TextSpan(text: w.substring(0, n), style: filled),
+        TextSpan(text: w.substring(n), style: unfilled),
+      ]),
+      style: style,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +217,7 @@ class _Word extends StatelessWidget {
     final wrong = prompter.stats.wrong[index] ?? 0;
     final frequent = prompter.stats.isFrequent(index);
 
-    Widget word = Text(prompter.words[index], style: style);
+    Widget word = _text();
     if (emphasis) {
       word = Container(
         key: ValueKey('emphasis-$index'),

@@ -4,50 +4,18 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:announcer_app/analysis/compare.dart';
-import 'package:announcer_app/analysis/live_metrics.dart';
+import 'package:announcer_app/analysis/karaoke.dart';
+import 'package:announcer_app/analysis/script_layout.dart';
 import 'package:announcer_app/audio/recorder.dart';
 import 'package:announcer_app/audio/wav.dart';
 import 'package:announcer_app/data/database.dart';
 import 'package:announcer_app/data/models.dart';
 import 'package:announcer_app/data/session_repository.dart';
 import 'package:announcer_app/practice/practice_controller.dart';
-import 'package:announcer_app/speech/live_transcriber.dart';
 import 'package:announcer_app/speech/transcriber.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
-class FakeLiveSession implements LiveSession {
-  final _partials = StreamController<String>.broadcast();
-  int fedBytes = 0;
-  int stops = 0;
-  String finalText = '';
-
-  @override
-  void feed(Uint8List pcm16) => fedBytes += pcm16.length;
-
-  @override
-  Stream<String> get partials => _partials.stream;
-
-  void hear(String text) => _partials.add(text);
-
-  @override
-  Future<String> stop() async {
-    stops++;
-    return finalText;
-  }
-}
-
-class FakeLive implements LiveTranscriber {
-  bool fail = false;
-  final session = FakeLiveSession();
-
-  @override
-  Future<LiveSession> start() async {
-    if (fail) throw Exception('model');
-    return session;
-  }
-}
 
 class FakeRecorder implements Recorder {
   RecordStart startResult = RecordStart.ok;
@@ -262,101 +230,102 @@ void main() {
     expect(recorder.starts, 2);
   });
 
-  group('실시간 인식', () {
-    late FakeLive live;
-    late PracticeController lc;
 
-    setUp(() {
-      live = FakeLive();
-      lc = PracticeController(
-        script: script,
-        recorder: recorder,
-        transcriber: transcriber,
-        sessions: sessions,
-        live: live,
-      );
-    });
-    tearDown(() => lc.dispose());
-
-    void feed(Duration d, {double amp = 0.4}) {
+  group('노래방식 진행', () {
+    // '경제가 크게 성장했습니다': 3+2+6 = 11음절, 표시 없음
+    void feed(Duration d) {
       final s = sine(d);
-      for (var i = 0; i < s.length; i++) {
-        s[i] = s[i] / 0.4 * amp;
-      }
       for (var o = 0; o < s.length; o += 1600) {
         recorder.frames.add(Float32List.sublistView(s, o, (o + 1600).clamp(0, s.length)));
       }
     }
 
-    test('들린 글이 오면 원고 위치와 진행률이 움직이고, 녹음 소리를 세션에 넣는다', () async {
-      await lc.start();
-      await pumpEventQueue();
+    KaraokeTimeline timeline(double pace) =>
+        KaraokeTimeline(scriptWords(script.body), const {}, pace);
+
+    test('기본 속도는 350, 녹음 전에는 바꿀 수 있고 범위로 맞춘다', () {
+      expect(c.pace, defaultPace);
+      c.setPace(123);
+      expect(c.pace, 200);
+      c.setPace(380);
+      expect(c.pace, 380);
+    });
+
+    test('시작하면 3-2-1 카운트다운 뒤 진행이 시작된다', () async {
+      await c.start();
+      expect(c.state.countdown, 3);
+      expect(c.state.karaoke, isFalse);
       feed(const Duration(seconds: 1));
-      live.session.hear('경제가 크게');
       await pumpEventQueue();
-      expect(lc.state.position, 5); // 경제가(3) + 크게(2)
-      expect(lc.state.progress, closeTo(5 / 11, 1e-9));
-      expect(lc.state.estimating, isFalse);
-      expect(live.session.fedBytes, 16000 * 2);
-      expect(lc.state.waveform, isNotEmpty);
-      expect(lc.state.loudness, isNotNull);
-      recorder.result = recording(sine(const Duration(seconds: 1)));
-      await lc.stop();
-    });
-
-    test('목소리가 6초 넘게 들어오는데 들린 글이 늘지 않으면 추정으로 바꾼다', () async {
-      await lc.start();
-      await pumpEventQueue();
-      live.session.hear('경제가');
-      await pumpEventQueue();
-      feed(const Duration(seconds: 7));
-      await pumpEventQueue();
-      expect(lc.state.estimating, isTrue);
-      expect(lc.state.position, greaterThan(3));
-      recorder.result = recording(sine(const Duration(seconds: 7)));
-      await lc.stop();
-      expect(live.session.stops, 1);
-      expect(transcriber.calls, 1); // 늦어진 녹음은 파일 전체를 다시 인식
-    });
-
-    test('끝까지 정상이면 실시간 최종 글로 비교하고 파일을 다시 인식하지 않는다', () async {
-      await lc.start();
-      await pumpEventQueue();
-      feed(const Duration(seconds: 2));
-      live.session.hear('경제가 크게 성장했습니다');
-      live.session.finalText = '경제가 크게 생장했습니다';
-      await pumpEventQueue();
-      recorder.result = recording(sine(const Duration(seconds: 2)));
-      await lc.stop();
-      await lc.transcription;
-      expect(transcriber.calls, 0);
-      expect(live.session.stops, 1);
-      expect(lc.state.resultStatus, ResultStatus.complete);
-      expect(lc.state.marks!.map((m) => m.status),
-          [MarkStatus.matched, MarkStatus.matched, MarkStatus.misheard]);
-      expect((await sessions.forScript(1)).single.transcript, '경제가 크게 생장했습니다');
-    });
-
-    test('실시간 인식을 시작하지 못해도 녹음은 계속되고 위치는 추정한다 (Review Focus 1)', () async {
-      live.fail = true;
-      await lc.start();
-      await pumpEventQueue();
-      expect(lc.state.phase, PracticePhase.recording);
-      expect(lc.state.estimating, isTrue);
+      expect(c.state.countdown, 2);
       feed(const Duration(seconds: 2));
       await pumpEventQueue();
-      expect(lc.state.position, greaterThan(0));
-      recorder.result = recording(sine(const Duration(seconds: 2)));
-      await lc.stop();
-      expect(transcriber.calls, 1);
+      expect(c.state.countdown, isNull);
+      expect(c.state.karaoke, isTrue);
+      expect(c.state.word, 0);
+      recorder.result = recording(sine(const Duration(seconds: 3)));
+      await c.stop();
     });
 
-    test('남은 시간은 남은 음절 ÷ 속도 (속도를 모르면 350)', () async {
-      await lc.start();
+    test('진행 위치는 녹음된 소리 길이로 잰 시간표를 따른다', () async {
+      c.setPace(300);
+      await c.start();
+      feed(const Duration(milliseconds: 3800)); // 진행 0.8초
       await pumpEventQueue();
-      expect(lc.state.remaining, remainingTime(11, null));
+      final f = timeline(300).at(const Duration(milliseconds: 800));
+      expect(c.state.word, f.word);
+      expect(c.state.wordFill, closeTo(f.wordFill, 1e-9));
+      expect(c.state.position, f.position);
+      expect(c.state.progress, closeTo(f.progress, 1e-9));
+      expect(c.state.remaining, f.remaining);
+      recorder.result = recording(sine(const Duration(seconds: 4)));
+      await c.stop();
+    });
+
+    test('녹음 중에는 속도를 바꿀 수 없다 (Review Focus 3)', () async {
+      await c.start();
+      c.setPace(450);
+      expect(c.pace, defaultPace);
       recorder.result = recording(Float32List(16000));
-      await lc.stop();
+      await c.stop();
+      c.setPace(450);
+      expect(c.pace, 450);
+    });
+
+    test('마지막 문장이 끝나고 1.5초 뒤 저절로 녹음을 멈춘다', () async {
+      await c.start();
+      recorder.result = recording(sine(const Duration(seconds: 7)));
+      final end = countdownLength + timeline(defaultPace).total + endHold;
+      feed(end - const Duration(milliseconds: 300));
+      await pumpEventQueue();
+      expect(c.state.phase, PracticePhase.recording);
+      feed(const Duration(milliseconds: 500));
+      await pumpEventQueue(times: 50);
+      await c.settled;
+      expect(recorder.done.isCompleted, isTrue);
+      expect(c.state.phase, PracticePhase.result);
+    });
+
+    test('카운트다운 중에 멈춰도 결과가 나온다 (Review Focus 2)', () async {
+      await c.start();
+      feed(const Duration(seconds: 1));
+      await pumpEventQueue();
+      recorder.result = recording(sine(const Duration(seconds: 1)));
+      await c.stop();
+      expect(c.state.phase, PracticePhase.result);
+      expect(c.state.resultStatus, isNotNull);
+      expect(c.state.session, isNotNull);
+    });
+
+    test('바꾼 끊어 읽기 표시도 진행 시간표에 반영된다', () async {
+      c.pauses = {0: Pause.breath};
+      await c.start();
+      feed(countdownLength + Duration(microseconds: (3 * 60e6 / 350).round() + 300000));
+      await pumpEventQueue();
+      expect(c.state.word, 0); // 숨 쉬는 중
+      expect(c.state.wordFill, 1);
+      recorder.result = recording(sine(const Duration(seconds: 4)));
+      await c.stop();
     });
   });
 }

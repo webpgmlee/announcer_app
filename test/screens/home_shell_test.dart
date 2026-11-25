@@ -9,6 +9,7 @@ import 'package:announcer_app/data/memo_repository.dart';
 import 'package:announcer_app/data/models.dart';
 import 'package:announcer_app/data/script_repository.dart';
 import 'package:announcer_app/data/session_repository.dart';
+import 'package:announcer_app/data/settings_repository.dart';
 import 'package:announcer_app/speech/transcriber.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ void main() {
         memoRepositoryProvider.overrideWithValue(MemoRepository(db)),
         recorderProvider.overrideWithValue(IdleRecorder()),
         transcriberProvider.overrideWithValue(NoTranscriber()),
-        liveTranscriberProvider.overrideWithValue(null),
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(db)),
       ],
       child: const AnnouncerApp(),
     ));
@@ -123,5 +124,40 @@ void main() {
     expect(find.text('또렷하게'), findsOneWidget);
     final s = (await scripts.all()).single;
     expect((await MemoRepository(db).forScript(s.id!))[2]!.text, '또렷하게');
+  });
+
+  testWidgets('속도는 기본 350이고, + 를 누르면 360으로 저장되어 다시 열어도 남는다', (tester) async {
+    await scripts.add(Script(title: '뉴스', body: '먼저 오늘의 소식입니다', createdAt: DateTime(2026)));
+    await pumpApp(tester);
+    await tester.tap(find.text('뉴스'));
+    await tester.pumpAndSettle();
+    expect(find.text('350'), findsOneWidget);
+    expect(find.text('음절/분'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pace-plus')));
+    await tester.pumpAndSettle();
+    expect(find.text('360'), findsOneWidget);
+    expect(await SettingsRepository(db).pace(), 360);
+
+    await tester.tap(find.text('대본'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('뉴스'));
+    await tester.pumpAndSettle();
+    expect(find.text('360'), findsOneWidget);
+  });
+
+  testWidgets('속도를 바꾸면 남은 시간도 바뀐다', (tester) async {
+    await scripts.add(Script(title: '뉴스', body: '먼저 오늘의 소식입니다', createdAt: DateTime(2026)));
+    await pumpApp(tester);
+    await tester.tap(find.text('뉴스'));
+    await tester.pumpAndSettle();
+    // 2+3+5 = 10음절: 350이면 약 1.7초 → 0:01, 200이면 3초 → 0:03
+    expect(find.text('남은 0:01'), findsOneWidget);
+    for (var i = 0; i < 15; i++) {
+      await tester.tap(find.byKey(const ValueKey('pace-minus')));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('200'), findsOneWidget);
+    expect(find.text('남은 0:03'), findsOneWidget);
   });
 }

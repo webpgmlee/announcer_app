@@ -103,14 +103,39 @@ void main() {
     expect(find.byKey(const ValueKey('emphasis-4')), findsOneWidget);
   });
 
-  testWidgets('지금 줄 앞뒤로 줄 상태가 나뉜다', (tester) async {
+  testWidgets('지금 문장의 줄들이 크게, 앞 문장은 지나감, 뒤 문장은 다음', (tester) async {
+    // 문장: [0,1) [1,6) [6,10) · 줄: [0,1) [1,3) [3,6) [6,10)
     await pump(
         tester,
         Prompter(
-            words: words, pauses: pauses, memos: const {}, stats: stats(0, {}), currentLine: 2));
-    expect(find.byKey(const ValueKey('line-2-current')), findsOneWidget);
+            words: words, pauses: pauses, memos: const {}, stats: stats(0, {}), currentSentence: 1));
     expect(find.byKey(const ValueKey('line-0-past')), findsOneWidget);
+    expect(find.byKey(const ValueKey('line-1-current')), findsOneWidget);
+    expect(find.byKey(const ValueKey('line-2-current')), findsOneWidget);
     expect(find.byKey(const ValueKey('line-3-next')), findsOneWidget);
+  });
+
+  testWidgets('진행 중에는 지금 어절까지 글자를 채운다 (노래방)', (tester) async {
+    await pump(
+        tester,
+        Prompter(
+          words: words,
+          pauses: pauses,
+          memos: const {},
+          stats: stats(0, {}),
+          currentSentence: 1,
+          karaoke: true,
+          activeWord: 5,
+          wordFill: 0.5,
+        ));
+    final partial = tester.widget<Text>(find.byKey(const ValueKey('fill-5')));
+    final spans = (partial.textSpan! as TextSpan).children!.cast<TextSpan>();
+    expect(spans.map((s) => s.text), ['시작하겠', '습니다.']);
+    expect(spans[0].style!.color, filledColor);
+    expect(spans[1].style!.color, unfilledColor);
+    final done = tester.widget<Text>(find.text('뉴스를'));
+    expect(done.style!.color, filledColor);
+    expect(find.byKey(const ValueKey('fill-6')), findsNothing);
   });
 
   testWidgets('한 줄의 어절들은 옆으로 이어진다 (표시 자리가 줄 전체로 늘지 않음)', (tester) async {

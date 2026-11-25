@@ -8,6 +8,7 @@ import 'data/database.dart';
 import 'data/memo_repository.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
+import 'data/settings_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,7 @@ Future<void> main() async {
       sessionRepositoryProvider.overrideWithValue(sessions),
       scriptRepositoryProvider.overrideWithValue(ScriptRepository(db, sessions)),
       memoRepositoryProvider.overrideWithValue(MemoRepository(db)),
+      settingsRepositoryProvider.overrideWithValue(SettingsRepository(db)),
     ],
     child: const AnnouncerApp(),
   ));
