@@ -18,7 +18,10 @@ String titleFor(String title, String body) {
 }
 
 class ScriptEditScreen extends ConsumerStatefulWidget {
-  const ScriptEditScreen({super.key});
+  const ScriptEditScreen({super.key, this.initialFolderId});
+
+  /// 처음에 골라 둘 폴더 (원고관리에서 폴더를 보고 있었으면 그 폴더).
+  final int? initialFolderId;
 
   @override
   ConsumerState<ScriptEditScreen> createState() => _ScriptEditScreenState();
@@ -28,6 +31,7 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
   final _title = TextEditingController();
   final _body = TextEditingController();
   bool _saving = false;
+  late int? _folderId = widget.initialFolderId;
 
   @override
   void initState() {
@@ -62,9 +66,10 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
     await ref.read(scriptRepositoryProvider).add(Script(
           title: titleFor(_title.text, _body.text),
           body: _body.text.trim(),
+          folderId: _folderId,
           createdAt: DateTime.now(),
         ));
-    ref.invalidate(scriptsProvider);
+    refreshLists(ref);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -101,6 +106,11 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              _FolderSelect(
+                value: _folderId,
+                onChanged: (v) => setState(() => _folderId = v),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   OutlinedButton.icon(
@@ -133,6 +143,28 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 원고를 넣을 폴더 고르기 (폴더 없음 포함).
+class _FolderSelect extends ConsumerWidget {
+  const _FolderSelect({required this.value, required this.onChanged});
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final folders = ref.watch(foldersProvider).value ?? const <Folder>[];
+    return DropdownButtonFormField<int?>(
+      key: const Key('folder-select'),
+      initialValue: folders.any((f) => f.id == value) ? value : null,
+      decoration: const InputDecoration(labelText: '폴더', border: OutlineInputBorder()),
+      items: [
+        const DropdownMenuItem<int?>(value: null, child: Text('폴더 없음')),
+        for (final f in folders) DropdownMenuItem<int?>(value: f.id, child: Text(f.name)),
+      ],
+      onChanged: onChanged,
     );
   }
 }

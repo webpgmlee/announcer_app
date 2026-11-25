@@ -2,7 +2,7 @@
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
-import 'screens/home_shell.dart';
+import 'screens/home_menu.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 
@@ -16,6 +16,6 @@ class AnnouncerApp extends StatelessWidget {
         title: 'My Diction',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
-        home: const SplashScreen(next: HomeShell()),
+        home: const SplashScreen(next: HomeMenu()),
       );
 }

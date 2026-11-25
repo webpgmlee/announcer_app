@@ -11,7 +11,6 @@ import '../theme.dart';
 import '../widgets/memo_sheet.dart';
 import '../widgets/prompter.dart';
 import '../widgets/studio.dart';
-import 'history_screen.dart';
 import 'result_screen.dart';
 
 /// 녹음 탭 (시안 1·2): 프롬프터, 속도·크기, 파형, 진행 막대, 녹음 버튼.

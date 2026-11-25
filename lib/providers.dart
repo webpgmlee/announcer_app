@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'analysis/error_stats.dart';
 import 'analysis/script_layout.dart';
 import 'audio/player.dart';
-import 'data/memo_repository.dart';
 import 'audio/recorder.dart';
+import 'data/folder_repository.dart';
+import 'data/memo_repository.dart';
 import 'data/models.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
@@ -17,30 +18,33 @@ final scriptRepositoryProvider =
     Provider<ScriptRepository>((ref) => throw UnimplementedError());
 final sessionRepositoryProvider =
     Provider<SessionRepository>((ref) => throw UnimplementedError());
-
 final memoRepositoryProvider =
     Provider<MemoRepository>((ref) => throw UnimplementedError());
+final folderRepositoryProvider =
+    Provider<FolderRepository>((ref) => throw UnimplementedError());
+final settingsRepositoryProvider =
+    Provider<SettingsRepository>((ref) => throw UnimplementedError());
 
 final scriptsProvider = FutureProvider<List<Script>>(
     (ref) => ref.watch(scriptRepositoryProvider).all());
+final foldersProvider = FutureProvider<List<Folder>>(
+    (ref) => ref.watch(folderRepositoryProvider).all());
 
-/// 녹음·기록 탭에서 쓰는 "지금 원고".
-class CurrentScript extends Notifier<Script?> {
-  @override
-  Script? build() => null;
-  void select(Script? s) => state = s;
+/// 모든 원고의 녹음 기록 (녹음관리).
+final allSessionsProvider = FutureProvider<List<PracticeSession>>(
+    (ref) => ref.watch(sessionRepositoryProvider).all());
+
+/// 원고 하나의 녹음 기록 (원고 조회의 녹음 횟수 등).
+final sessionsForScriptProvider = FutureProvider.family<List<PracticeSession>, int>(
+    (ref, scriptId) => ref.watch(sessionRepositoryProvider).forScript(scriptId));
+
+/// 원고·녹음이 바뀐 뒤 목록들을 다시 읽게 한다.
+void refreshLists(WidgetRef ref) {
+  ref.invalidate(scriptsProvider);
+  ref.invalidate(foldersProvider);
+  ref.invalidate(allSessionsProvider);
+  ref.invalidate(sessionsForScriptProvider);
 }
-
-final currentScriptProvider = NotifierProvider<CurrentScript, Script?>(CurrentScript.new);
-
-/// 아래 탭: 0 대본, 1 녹음, 2 기록.
-class HomeTab extends Notifier<int> {
-  @override
-  int build() => 0;
-  void go(int tab) => state = tab;
-}
-
-final homeTabProvider = NotifierProvider<HomeTab, int>(HomeTab.new);
 
 /// 원고 위에 그릴 것들: 어절, 끊어 읽기 표시, 메모, 자주 틀림.
 class ScriptDetails {
@@ -72,7 +76,5 @@ final scriptDetailsProvider =
 final recorderProvider =
     Provider<Recorder>((ref) => StreamRecorder(RecordPcmSource()));
 final transcriberProvider = Provider<Transcriber>((ref) => WhisperTranscriber());
-final settingsRepositoryProvider =
-    Provider<SettingsRepository>((ref) => throw UnimplementedError());
 final playerFactoryProvider =
     Provider<Player Function()>((ref) => JustAudioPlayer.new);

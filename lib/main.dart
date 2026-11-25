@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import 'app.dart';
 import 'data/database.dart';
 import 'data/default_scripts.dart';
+import 'data/folder_repository.dart';
 import 'data/memo_repository.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
       sessionRepositoryProvider.overrideWithValue(sessions),
       scriptRepositoryProvider.overrideWithValue(scripts),
       memoRepositoryProvider.overrideWithValue(MemoRepository(db)),
+      folderRepositoryProvider.overrideWithValue(FolderRepository(db)),
       settingsRepositoryProvider.overrideWithValue(SettingsRepository(db)),
     ],
     child: const AnnouncerApp(),
