@@ -37,9 +37,9 @@ void main() {
         createdAt: at,
       ));
 
-  test('스키마 버전은 6', () async {
-    expect(currentSchemaVersion, 6);
-    expect(await db.getVersion(), 6);
+  test('스키마 버전은 6 이상 (완료 시각이 생긴 버전)', () async {
+    expect(currentSchemaVersion, greaterThanOrEqualTo(6));
+    expect(await db.getVersion(), currentSchemaVersion);
   });
 
   test('원고별 녹음 횟수와 마지막 연습 시각', () async {
