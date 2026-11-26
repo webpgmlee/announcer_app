@@ -56,4 +56,31 @@ void main() {
   test('전체 길이는 4초 (나타남 0.8 + 머무름 2.5 + 사라짐 0.7)', () {
     expect(splashDuration, const Duration(milliseconds: 4000));
   });
+
+  group('폰에서 애니메이션을 꺼 둔 경우 (삼성 절전 모드·애니메이션 제거 등)', () {
+
+    Future<void> pumpReduced(WidgetTester tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      await pump(tester);
+    }
+
+    testWidgets('그래도 2.5초 넘게 보이고 바로 사라지지 않는다', (tester) async {
+      await pumpReduced(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('My Diction'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 2800)); // 3.3초
+      expect(find.text('My Diction'), findsOneWidget);
+      expect(find.text('메인 화면'), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('메인 화면'), findsOneWidget);
+    });
+
+    testWidgets('페이드 없이 처음부터 또렷하게 보인다', (tester) async {
+      await pumpReduced(tester);
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(opacityOfTitle(tester), closeTo(1, 0.01));
+    });
+  });
 }
