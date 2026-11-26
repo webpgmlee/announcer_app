@@ -402,4 +402,43 @@ void main() {
       await lc.stop();
     });
   });
+
+  group('퍼펙트딕션 도전 모드 (기록을 남기지 않음)', () {
+    late PracticeController cc;
+    setUp(() => cc = PracticeController(
+        script: Script(title: '간장', body: '경제가 크게 성장했습니다', createdAt: DateTime(2026)),
+        recorder: recorder,
+        transcriber: transcriber,
+        sessions: sessions,
+        keepRecording: false,
+        pace: 300));
+    tearDown(() => cc.dispose());
+
+    test('녹음관리 기록을 만들지 않고, 인식이 끝나면 녹음 파일을 지운다 (Review Focus 3)', () async {
+      await cc.start();
+      final r = recording(sine(const Duration(seconds: 2)));
+      recorder.result = r;
+      await cc.stop();
+      expect(cc.state.phase, PracticePhase.result);
+      expect(cc.state.voiced, isNotNull);
+      expect(cc.state.voiced!.inMilliseconds, inInclusiveRange(1800, 2000));
+      transcriber.next.complete(const Transcript(text: '경제가 크게 생장했습니다', words: []));
+      await cc.transcription;
+      expect(cc.state.resultStatus, ResultStatus.complete);
+      expect(cc.state.transcript, '경제가 크게 생장했습니다');
+      expect(await sessions.all(), isEmpty);
+      expect(File(r.wavPath).existsSync(), isFalse);
+    });
+
+    test('아무 말도 안 하면 바로 결과(목소리 없음)이고 기록도 없다', () async {
+      await cc.start();
+      recorder.result = recording(Float32List(16000));
+      await cc.stop();
+      expect(cc.state.message, noVoiceMessage);
+      expect(cc.state.voiced, Duration.zero);
+      expect(await sessions.all(), isEmpty);
+    });
+
+    test('도전은 정해진 속도를 쓴다', () => expect(cc.pace, 300));
+  });
 }

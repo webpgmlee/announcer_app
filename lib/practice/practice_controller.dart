@@ -59,6 +59,7 @@ class PracticeState {
     this.message,
     this.error,
     this.interrupted = false,
+    this.voiced,
   });
 
   final PracticePhase phase;
@@ -110,6 +111,9 @@ class PracticeState {
   /// 전화 수신·백그라운드 전환으로 녹음이 끊겼으면 true.
   final bool interrupted;
 
+  /// 목소리가 난 구간의 길이 (처음 목소리부터 마지막 목소리까지). 결과가 나오면 채워진다.
+  final Duration? voiced;
+
   PracticeState copyWith({
     ResultStatus? resultStatus,
     List<WordMark>? marks,
@@ -141,6 +145,7 @@ class PracticeState {
         message: message,
         error: error ?? this.error,
         interrupted: interrupted,
+        voiced: voiced,
       );
 }
 
@@ -151,6 +156,7 @@ class PracticeController extends ChangeNotifier {
     required this._transcriber,
     required this._sessions,
     double pace = defaultPace,
+    this.keepRecording = true,
     DateTime Function()? now,
   })  : _pace = clampPace(pace),
         _now = now ?? DateTime.now,
@@ -160,6 +166,9 @@ class PracticeController extends ChangeNotifier {
   }
 
   final Script script;
+
+  /// false면 퍼펙트딕션 도전처럼 녹음관리 기록을 만들지 않고, 인식이 끝나면 녹음 파일을 지운다.
+  final bool keepRecording;
   final Recorder _recorder;
   final Transcriber _transcriber;
   final SessionRepository _sessions;
@@ -344,20 +353,22 @@ class PracticeController extends ChangeNotifier {
         intonation: intonation,
         message: noVoiceMessage,
         interrupted: r.interrupted,
+        voiced: Duration.zero,
       ));
       return;
     }
 
     final elapsed = voicedSpan(pitch) ?? r.elapsed;
     final draft = PracticeSession(
-      scriptId: script.id!,
+      scriptId: script.id ?? -1,
       audioPath: r.wavPath,
       elapsed: elapsed,
       syllablesPerMinute: syllablesPerMinute(countSyllables(script.body), elapsed),
       pitch: pitch,
       createdAt: _now(),
     );
-    final id = await _sessions.add(draft);
+    // 도전 모드(퍼펙트딕션)는 녹음관리 기록을 만들지 않는다.
+    final id = keepRecording ? await _sessions.add(draft) : null;
     final session = PracticeSession(
       id: id,
       scriptId: draft.scriptId,
@@ -373,6 +384,7 @@ class PracticeController extends ChangeNotifier {
       session: session,
       intonation: intonation,
       interrupted: r.interrupted,
+      voiced: elapsed,
     ));
     transcription = _transcribe(session);
   }
@@ -384,7 +396,9 @@ class PracticeController extends ChangeNotifier {
         onProgress: (v) => _set(_state.copyWith(transcribeProgress: v)),
       );
       final marks = compareToScript(script.body, t.text);
-      await _sessions.updateMarks(session.id!, marks, transcript: t.text);
+      if (keepRecording) {
+        await _sessions.updateMarks(session.id!, marks, transcript: t.text);
+      }
       _set(_state.copyWith(
         resultStatus: ResultStatus.complete,
         marks: marks,
@@ -397,6 +411,12 @@ class PracticeController extends ChangeNotifier {
         resultStatus: ResultStatus.complete,
         error: transcribeFailedMessage,
       ));
+    } finally {
+      // 도전 모드는 점수만 남기고 녹음 파일은 지운다.
+      if (!keepRecording) {
+        final f = File(session.audioPath);
+        if (f.existsSync()) f.deleteSync();
+      }
     }
   }
 
