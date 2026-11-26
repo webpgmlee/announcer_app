@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:announcer_app/app.dart';
 import 'package:announcer_app/audio/recorder.dart';
+import 'package:announcer_app/data/challenge_repository.dart';
 import 'package:announcer_app/data/database.dart';
 import 'package:announcer_app/data/folder_repository.dart';
 import 'package:announcer_app/data/memo_repository.dart';
@@ -41,7 +42,8 @@ class TestStore {
       : sessions = SessionRepository(db),
         folders = FolderRepository(db),
         memos = MemoRepository(db),
-        settings = SettingsRepository(db) {
+        settings = SettingsRepository(db),
+        challenges = ChallengeRepository(db) {
     scripts = ScriptRepository(db, sessions);
   }
 
@@ -56,6 +58,7 @@ class TestStore {
   final FolderRepository folders;
   final MemoRepository memos;
   final SettingsRepository settings;
+  final ChallengeRepository challenges;
   late final ScriptRepository scripts;
 
   List<Override> get overrides => [
@@ -64,6 +67,7 @@ class TestStore {
         folderRepositoryProvider.overrideWithValue(folders),
         memoRepositoryProvider.overrideWithValue(memos),
         settingsRepositoryProvider.overrideWithValue(settings),
+        challengeRepositoryProvider.overrideWithValue(challenges),
         recorderProvider.overrideWithValue(IdleRecorder()),
         transcriberProvider.overrideWithValue(NoTranscriber()),
       ];

@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'analysis/diction_score.dart';
 import 'analysis/error_stats.dart';
 import 'analysis/script_layout.dart';
 import 'audio/player.dart';
 import 'audio/recorder.dart';
+import 'data/challenge_repository.dart';
 import 'data/folder_repository.dart';
 import 'data/memo_repository.dart';
 import 'data/models.dart';
@@ -84,3 +86,10 @@ final recorderProvider =
 final transcriberProvider = Provider<Transcriber>((ref) => WhisperTranscriber());
 final playerFactoryProvider =
     Provider<Player Function()>((ref) => JustAudioPlayer.new);
+
+/// 퍼펙트딕션: 도전 기록, 도전마다 최고 점수·별, 점수 계산기(나중에 클라우드 평가로 바꿔 끼움).
+final challengeRepositoryProvider =
+    Provider<ChallengeRepository>((ref) => throw UnimplementedError());
+final challengeBestProvider = FutureProvider<Map<String, ChallengeBest>>(
+    (ref) => ref.watch(challengeRepositoryProvider).best());
+final dictionScorerProvider = Provider<DictionScorer>((ref) => const OnDeviceDictionScorer());

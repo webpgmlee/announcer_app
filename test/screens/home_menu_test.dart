@@ -1,8 +1,6 @@
 import 'package:announcer_app/data/models.dart';
-import 'package:announcer_app/screens/home_menu.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers.dart';
@@ -18,7 +16,7 @@ void main() {
     for (final label in ['발음연습', '원고관리', '녹음관리', '퍼펙트딕션']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('준비 중'), findsOneWidget);
+    expect(find.text('준비 중'), findsNothing);
     expect(find.textContaining('점수'), findsNothing);
   });
 
@@ -67,20 +65,11 @@ void main() {
     expect(find.text('연습할 원고를 붙여넣어 주세요'), findsOneWidget);
   });
 
-  testWidgets('퍼펙트딕션은 준비 중 안내만 보여준다', (tester) async {
+  testWidgets('퍼펙트딕션을 누르면 도전 목록이 열린다', (tester) async {
     await store.pumpApp(tester);
     await tester.tap(find.text('퍼펙트딕션'));
     await tester.pumpAndSettle();
-    expect(find.text('곧 만나요'), findsOneWidget);
-  });
-
-  testWidgets('숨김 설정이면 퍼펙트딕션 카드가 없다', (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: store.overrides,
-      child: const MaterialApp(home: HomeMenu(showPerfectDiction: false)),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('퍼펙트딕션'), findsNothing);
-    expect(find.text('발음연습'), findsOneWidget);
+    expect(find.text('잰말놀이'), findsOneWidget);
+    expect(find.text('곧 만나요'), findsNothing);
   });
 }

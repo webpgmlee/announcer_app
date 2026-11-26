@@ -14,7 +14,9 @@ const autoTitleLength = 20;
 String titleFor(String title, String body) {
   if (title.trim().isNotEmpty) return title.trim();
   final flat = body.trim().replaceAll(RegExp(r'\s+'), ' ');
-  return flat.length <= autoTitleLength ? flat : flat.substring(0, autoTitleLength);
+  return flat.length <= autoTitleLength
+      ? flat
+      : flat.substring(0, autoTitleLength);
 }
 
 class ScriptEditScreen extends ConsumerStatefulWidget {
@@ -53,8 +55,8 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
     final text = data?.text;
     if (text == null || text.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('복사한 글이 없어요')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('복사한 글이 없어요')));
       }
       return;
     }
@@ -63,12 +65,16 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await ref.read(scriptRepositoryProvider).add(Script(
-          title: titleFor(_title.text, _body.text),
-          body: _body.text.trim(),
-          folderId: _folderId,
-          createdAt: DateTime.now(),
-        ));
+    await ref
+        .read(scriptRepositoryProvider)
+        .add(
+          Script(
+            title: titleFor(_title.text, _body.text),
+            body: _body.text.trim(),
+            folderId: _folderId,
+            createdAt: DateTime.now(),
+          ),
+        );
     refreshLists(ref);
     if (mounted) Navigator.of(context).pop();
   }
@@ -120,8 +126,10 @@ class _ScriptEditScreenState extends ConsumerState<ScriptEditScreen> {
                     label: const Text('복사한 글 붙여넣기'),
                   ),
                   const Spacer(),
-                  Text('$syllables음절',
-                      style: Theme.of(context).textTheme.labelLarge),
+                  Text(
+                    '$syllables음절',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -159,10 +167,14 @@ class _FolderSelect extends ConsumerWidget {
     return DropdownButtonFormField<int?>(
       key: const Key('folder-select'),
       initialValue: folders.any((f) => f.id == value) ? value : null,
-      decoration: const InputDecoration(labelText: '폴더', border: OutlineInputBorder()),
+      decoration: const InputDecoration(
+        labelText: '폴더',
+        border: OutlineInputBorder(),
+      ),
       items: [
         const DropdownMenuItem<int?>(value: null, child: Text('폴더 없음')),
-        for (final f in folders) DropdownMenuItem<int?>(value: f.id, child: Text(f.name)),
+        for (final f in folders)
+          DropdownMenuItem<int?>(value: f.id, child: Text(f.name)),
       ],
       onChanged: onChanged,
     );

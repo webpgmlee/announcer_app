@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import 'app.dart';
+import 'data/challenge_repository.dart';
 import 'data/database.dart';
 import 'data/default_scripts.dart';
 import 'data/folder_repository.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
       memoRepositoryProvider.overrideWithValue(MemoRepository(db)),
       folderRepositoryProvider.overrideWithValue(folders),
       settingsRepositoryProvider.overrideWithValue(SettingsRepository(db)),
+      challengeRepositoryProvider.overrideWithValue(ChallengeRepository(db)),
     ],
     child: const AnnouncerApp(),
   ));

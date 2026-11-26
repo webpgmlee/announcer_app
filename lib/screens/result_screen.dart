@@ -24,17 +24,17 @@ class ResultScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-        appBar: AppBar(title: Text(script.title)),
-        body: ResultView(
-          script: script,
-          session: session,
-          intonation: analyzeIntonation(session.pitch),
-          status: ResultStatus.complete,
-          marks: session.marks,
-          error: session.marks == null ? '이 기록에는 원고 비교 결과가 없어요' : null,
-          playerFactory: ref.read(playerFactoryProvider),
-        ),
-      );
+    appBar: AppBar(title: Text(script.title)),
+    body: ResultView(
+      script: script,
+      session: session,
+      intonation: analyzeIntonation(session.pitch),
+      status: ResultStatus.complete,
+      marks: session.marks,
+      error: session.marks == null ? '이 기록에는 원고 비교 결과가 없어요' : null,
+      playerFactory: ref.read(playerFactoryProvider),
+    ),
+  );
 }
 
 /// 결과 내용. 연습 직후(연습 화면)와 기록 보기(결과 화면)에서 같이 쓴다.
@@ -119,20 +119,27 @@ class _ResultViewState extends State<ResultView> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.mic_off_outlined, size: 56, color: theme.colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(widget.message!, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text('마이크 가까이에서 소리 내어 읽어 주세요.'),
-            const SizedBox(height: 24),
-            if (widget.onRetry != null)
-              FilledButton.icon(
-                onPressed: widget.onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('다시 연습'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.mic_off_outlined,
+                size: 56,
+                color: theme.colorScheme.primary,
               ),
-          ]),
+              const SizedBox(height: 16),
+              Text(widget.message!, style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text('마이크 가까이에서 소리 내어 읽어 주세요.'),
+              const SizedBox(height: 24),
+              if (widget.onRetry != null)
+                FilledButton.icon(
+                  onPressed: widget.onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('다시 연습'),
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -151,34 +158,53 @@ class _ResultViewState extends State<ResultView> {
             ),
           ),
         if (s != null) ...[
-          Row(children: [
-            Expanded(child: _Metric(label: '걸린 시간', value: formatDuration(s.elapsed))),
-            const SizedBox(width: 12),
-            Expanded(
+          Row(
+            children: [
+              Expanded(
                 child: _Metric(
-                    label: '1분당 음절',
-                    value: s.syllablesPerMinute.round().toString())),
-          ]),
-          const SizedBox(height: 16),
-          Row(children: [
-            Text('억양', style: theme.textTheme.titleMedium),
-            const Spacer(),
-            if (_player != null)
-              IconButton.filledTonal(
-                onPressed: _togglePlay,
-                icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                tooltip: _playing ? '멈춤' : '다시 듣기',
+                  label: '걸린 시간',
+                  value: formatDuration(s.elapsed),
+                ),
               ),
-          ]),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Metric(
+                  label: '1분당 음절',
+                  value: s.syllablesPerMinute.round().toString(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('억양', style: theme.textTheme.titleMedium),
+              const Spacer(),
+              if (_player != null)
+                IconButton.filledTonal(
+                  onPressed: _togglePlay,
+                  icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
+                  tooltip: _playing ? '멈춤' : '다시 듣기',
+                ),
+            ],
+          ),
           PitchLine(pitch: s.pitch, report: report, cursor: _position),
           if (report != null)
-            Wrap(spacing: 16, children: [
-              Text('단조로운 구간 ${report.flatRanges.length}곳',
-                  style: theme.textTheme.bodySmall),
-              Text('문장 끝이 올라간 곳 ${report.risingEnds.length}곳',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.orange.shade800)),
-            ]),
+            Wrap(
+              spacing: 16,
+              children: [
+                Text(
+                  '단조로운 구간 ${report.flatRanges.length}곳',
+                  style: theme.textTheme.bodySmall,
+                ),
+                Text(
+                  '문장 끝이 올라간 곳 ${report.risingEnds.length}곳',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 24),
         ],
         Text('다르게 들린 단어', style: theme.textTheme.titleMedium),
@@ -215,11 +241,14 @@ class _Metric extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: theme.textTheme.labelLarge),
-          const SizedBox(height: 4),
-          Text(value, style: theme.textTheme.headlineMedium),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Text(value, style: theme.textTheme.headlineMedium),
+          ],
+        ),
       ),
     );
   }

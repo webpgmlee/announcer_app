@@ -21,20 +21,23 @@ class ScriptManageScreen extends ConsumerStatefulWidget {
 
 class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
   Future<void> _add() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const ScriptEditScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const ScriptEditScreen()));
     refreshLists(ref);
   }
 
   Future<void> _openFolders() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const FolderManageScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const FolderManageScreen()));
     refreshLists(ref);
   }
 
   Future<void> _view(Script s) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => ScriptDetailScreen(script: s)));
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => ScriptDetailScreen(script: s)),
+    );
     refreshLists(ref);
   }
 
@@ -75,8 +78,14 @@ class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
         title: const Text('원고를 지울까요?'),
         content: const Text('이 원고로 연습한 녹음과 메모도 모두 지워지고 되돌릴 수 없어요.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('지우기')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('지우기'),
+          ),
         ],
       ),
     );
@@ -114,28 +123,31 @@ class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
             )
           : null,
       body: switch (scripts) {
-        AsyncData(:final value) when value.isEmpty => _EmptyGuide(onPaste: _add),
+        AsyncData(:final value) when value.isEmpty => _EmptyGuide(
+          onPaste: _add,
+        ),
         AsyncData() => ScriptBrowser(
-            onOpen: _view,
-            trailing: (s, practicing) => PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              tooltip: '더보기',
-              onSelected: (v) => switch (v) {
-                'view' => _view(s),
-                'done' => _complete(s),
-                'copy' => _duplicate(s),
-                'move' => _move(s, folders),
-                _ => _delete(s),
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'view', child: Text('조회')),
-                if (practicing) const PopupMenuItem(value: 'done', child: Text('연습 완료')),
-                const PopupMenuItem(value: 'copy', child: Text('복제')),
-                const PopupMenuItem(value: 'move', child: Text('폴더 이동')),
-                const PopupMenuItem(value: 'delete', child: Text('삭제')),
-              ],
-            ),
+          onOpen: _view,
+          trailing: (s, practicing) => PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: '더보기',
+            onSelected: (v) => switch (v) {
+              'view' => _view(s),
+              'done' => _complete(s),
+              'copy' => _duplicate(s),
+              'move' => _move(s, folders),
+              _ => _delete(s),
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'view', child: Text('조회')),
+              if (practicing)
+                const PopupMenuItem(value: 'done', child: Text('연습 완료')),
+              const PopupMenuItem(value: 'copy', child: Text('복제')),
+              const PopupMenuItem(value: 'move', child: Text('폴더 이동')),
+              const PopupMenuItem(value: 'delete', child: Text('삭제')),
+            ],
           ),
+        ),
         AsyncError() => const Center(child: Text('원고를 불러오지 못했어요')),
         _ => const Center(child: CircularProgressIndicator()),
       },
@@ -158,11 +170,17 @@ class _EmptyGuide extends StatelessWidget {
           children: [
             const Icon(Icons.article_outlined, size: 64, color: Palette.ink),
             const SizedBox(height: 16),
-            Text('연습할 원고를 붙여넣어 주세요',
-                style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            Text(
+              '연습할 원고를 붙여넣어 주세요',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
-            Text('뉴스 원고나 직접 쓴 글을 복사해서 붙여넣으면\n소리 내어 읽으며 연습할 수 있어요.',
-                style: theme.textTheme.bodyMedium, textAlign: TextAlign.center),
+            Text(
+              '뉴스 원고나 직접 쓴 글을 복사해서 붙여넣으면\n소리 내어 읽으며 연습할 수 있어요.',
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onPaste,

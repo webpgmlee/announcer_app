@@ -64,22 +64,25 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
   }
 
   Future<void> _showPermissionGuide() => showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('마이크를 쓸 수 없어요'),
-          content: const Text('연습을 녹음하려면 설정에서 이 앱의 마이크 권한을 켜 주세요.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('닫기')),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                AppSettings.openAppSettings();
-              },
-              child: const Text('설정 열기'),
-            ),
-          ],
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('마이크를 쓸 수 없어요'),
+      content: const Text('연습을 녹음하려면 설정에서 이 앱의 마이크 권한을 켜 주세요.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('닫기'),
         ),
-      );
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            AppSettings.openAppSettings();
+          },
+          child: const Text('설정 열기'),
+        ),
+      ],
+    ),
+  );
 
   @override
   void dispose() {
@@ -109,16 +112,25 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
   }
 
   Future<void> _editMemo(ScriptDetails d, int i) async {
-    final edit = await showMemoSheet(context,
-        word: d.words[i], wordIndex: i, stats: d.stats, memo: d.memos[i]);
+    final edit = await showMemoSheet(
+      context,
+      word: d.words[i],
+      wordIndex: i,
+      stats: d.stats,
+      memo: d.memos[i],
+    );
     if (edit == null) return;
-    await ref.read(memoRepositoryProvider).save(Memo(
-          scriptId: widget.script.id!,
-          wordIndex: i,
-          kind: edit.kind,
-          text: edit.text,
-          createdAt: DateTime.now(),
-        ));
+    await ref
+        .read(memoRepositoryProvider)
+        .save(
+          Memo(
+            scriptId: widget.script.id!,
+            wordIndex: i,
+            kind: edit.kind,
+            text: edit.text,
+            createdAt: DateTime.now(),
+          ),
+        );
     ref.invalidate(scriptDetailsProvider(widget.script));
   }
 
@@ -172,7 +184,9 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
     // 녹음을 시작할 때 쓸 끊어 읽기 표시를 컨트롤러에 알려 둔다 (남은 시간도 다시 계산됨).
     if (!recording && !identical(_c.pauses, d.pauses)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _c.state.phase != PracticePhase.recording) _c.pauses = d.pauses;
+        if (mounted && _c.state.phase != PracticePhase.recording) {
+          _c.pauses = d.pauses;
+        }
       });
     }
     final offsets = syllableOffsets(d.words);
@@ -204,7 +218,8 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
                   onLongPressWord: (i) => _editMemo(d, i),
                 ),
               ),
-              if (recording && s.countdown != null) CountdownBadge(value: s.countdown!),
+              if (recording && s.countdown != null)
+                CountdownBadge(value: s.countdown!),
               // 진행 속도보다 빠르거나 느리게 읽으면 원고 위에 잠깐 알린다.
               if (recording)
                 Positioned(top: 4, child: PaceBadge(feedback: s.paceFeedback)),
@@ -216,11 +231,16 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
           spacing: 8,
           runSpacing: 6,
           children: [
-            PaceControl(pace: _c.pace, enabled: !recording, onChanged: _changePace),
+            PaceControl(
+              pace: _c.pace,
+              enabled: !recording,
+              onChanged: _changePace,
+            ),
             LevelChips(
-                label: '크기',
-                options: const ['작게', '적당', '크게'],
-                selected: recording ? loudIndex(s.loudness) : null),
+              label: '크기',
+              options: const ['작게', '적당', '크게'],
+              selected: recording ? loudIndex(s.loudness) : null,
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -228,11 +248,15 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
         const SizedBox(height: 4),
         Row(
           children: [
-            Text('대본 ${(s.progress * 100).round()}%',
-                style: const TextStyle(color: Palette.muted)),
+            Text(
+              '대본 ${(s.progress * 100).round()}%',
+              style: const TextStyle(color: Palette.muted),
+            ),
             const Spacer(),
-            Text('남은 ${formatDuration(s.remaining)}',
-                style: const TextStyle(color: Palette.faint)),
+            Text(
+              '남은 ${formatDuration(s.remaining)}',
+              style: const TextStyle(color: Palette.faint),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -251,23 +275,28 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('온에어.', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500)),
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 18, color: Palette.faint)),
-              ],
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '온에어.',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
             ),
-          ),
-          OnAirBadge(active: onAir),
-        ],
-      );
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 18, color: Palette.faint),
+            ),
+          ],
+        ),
+      ),
+      OnAirBadge(active: onAir),
+    ],
+  );
 }
 
 class _Legend extends StatelessWidget {
@@ -282,14 +311,38 @@ class _Legend extends StatelessWidget {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text.rich(TextSpan(children: [TextSpan(text: '/ ', style: mark), TextSpan(text: '쉼', style: label)])),
-        const Text.rich(TextSpan(children: [TextSpan(text: '// ', style: mark), TextSpan(text: '숨', style: label)])),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 20, height: 6, color: Palette.emphasis),
-          const SizedBox(width: 4),
-          const Text('강조', style: label),
-        ]),
-        const Text.rich(TextSpan(children: [TextSpan(text: '〰 ', style: mark), TextSpan(text: '자주 틀림', style: label)])),
+        const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '/ ', style: mark),
+              TextSpan(text: '쉼', style: label),
+            ],
+          ),
+        ),
+        const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '// ', style: mark),
+              TextSpan(text: '숨', style: label),
+            ],
+          ),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 20, height: 6, color: Palette.emphasis),
+            const SizedBox(width: 4),
+            const Text('강조', style: label),
+          ],
+        ),
+        const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '〰 ', style: mark),
+              TextSpan(text: '자주 틀림', style: label),
+            ],
+          ),
+        ),
       ],
     );
   }
