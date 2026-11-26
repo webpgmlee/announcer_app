@@ -47,9 +47,9 @@ void main() {
         createdAt: at,
       );
 
-  test('스키마 버전은 5', () async {
-    expect(currentSchemaVersion, 5);
-    expect(await db.getVersion(), 5);
+  test('스키마 버전은 5 이상 (폴더 테이블이 생긴 버전)', () async {
+    expect(currentSchemaVersion, greaterThanOrEqualTo(5));
+    expect(await db.getVersion(), currentSchemaVersion);
   });
 
   group('폴더', () {

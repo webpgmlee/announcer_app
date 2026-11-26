@@ -14,6 +14,7 @@ class Script {
     this.difficulty,
     this.isPremium = false,
     this.folderId,
+    this.completedAt,
     required this.createdAt,
   });
 
@@ -26,6 +27,9 @@ class Script {
 
   /// 들어 있는 폴더. null이면 폴더 없음.
   final int? folderId;
+
+  /// 마지막으로 "연습 완료"를 누른 시각. 이보다 나중에 녹음하면 다시 연습 중이 된다.
+  final DateTime? completedAt;
   final DateTime createdAt;
 }
 

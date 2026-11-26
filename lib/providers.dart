@@ -7,6 +7,7 @@ import 'audio/recorder.dart';
 import 'data/folder_repository.dart';
 import 'data/memo_repository.dart';
 import 'data/models.dart';
+import 'data/practice_state.dart';
 import 'data/script_repository.dart';
 import 'data/session_repository.dart';
 import 'data/settings_repository.dart';
@@ -34,6 +35,10 @@ final foldersProvider = FutureProvider<List<Folder>>(
 final allSessionsProvider = FutureProvider<List<PracticeSession>>(
     (ref) => ref.watch(sessionRepositoryProvider).all());
 
+/// 원고별 녹음 횟수와 마지막 연습 시각 (연습 중 판단, 카드 표시).
+final practiceStatsProvider = FutureProvider<Map<int, PracticeStat>>(
+    (ref) => ref.watch(sessionRepositoryProvider).practiceStats());
+
 /// 원고 하나의 녹음 기록 (원고 조회의 녹음 횟수 등).
 final sessionsForScriptProvider = FutureProvider.family<List<PracticeSession>, int>(
     (ref, scriptId) => ref.watch(sessionRepositoryProvider).forScript(scriptId));
@@ -43,6 +48,7 @@ void refreshLists(WidgetRef ref) {
   ref.invalidate(scriptsProvider);
   ref.invalidate(foldersProvider);
   ref.invalidate(allSessionsProvider);
+  ref.invalidate(practiceStatsProvider);
   ref.invalidate(sessionsForScriptProvider);
 }
 

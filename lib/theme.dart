@@ -63,6 +63,22 @@ ThemeData buildTheme() {
       ),
     ),
     dividerTheme: const DividerThemeData(color: Palette.line),
+    // 선택된 칩은 검정 바탕에 흰 글씨, 나머지는 미색 바탕에 얇은 테두리.
+    chipTheme: ChipThemeData(
+      backgroundColor: Palette.surface,
+      selectedColor: Palette.ink,
+      side: const BorderSide(color: Palette.line),
+      shape: const StadiumBorder(),
+      // 글꼴은 앱 글자 모양을 그대로 쓰고 색만 바꾼다.
+      labelStyle: base.textTheme.labelLarge?.copyWith(color: Palette.ink),
+      secondaryLabelStyle: base.textTheme.labelLarge?.copyWith(color: Colors.white),
+      checkmarkColor: Colors.white,
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: Palette.ink,
+      foregroundColor: Colors.white,
+      shape: StadiumBorder(),
+    ),
     textTheme: base.textTheme.apply(bodyColor: Palette.ink, displayColor: Palette.ink),
   );
 }

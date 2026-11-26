@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../analysis/syllables.dart';
 import '../data/models.dart';
 import '../providers.dart';
 import '../theme.dart';
-import '../widgets/folder_chips.dart';
+import '../widgets/folder_chips.dart' show noFolder;
+import '../widgets/script_browser.dart';
 import 'folder_manage_screen.dart';
 import 'script_detail_screen.dart';
 import 'script_edit_screen.dart';
@@ -20,13 +20,9 @@ class ScriptManageScreen extends ConsumerStatefulWidget {
 }
 
 class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
-  int _folder = allFolders;
-
-  int? get _folderForNew => _folder > noFolder ? _folder : null;
-
   Future<void> _add() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => ScriptEditScreen(initialFolderId: _folderForNew)));
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const ScriptEditScreen()));
     refreshLists(ref);
   }
 
@@ -34,11 +30,6 @@ class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const FolderManageScreen()));
     refreshLists(ref);
-    // 보고 있던 폴더가 지워졌으면 전체로 돌아간다.
-    final folders = await ref.read(folderRepositoryProvider).all();
-    if (_folder > noFolder && !folders.any((f) => f.id == _folder)) {
-      setState(() => _folder = allFolders);
-    }
   }
 
   Future<void> _view(Script s) async {
@@ -94,11 +85,15 @@ class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
     refreshLists(ref);
   }
 
+  Future<void> _complete(Script s) async {
+    await ref.read(scriptRepositoryProvider).markCompleted(s.id!);
+    refreshLists(ref);
+  }
+
   @override
   Widget build(BuildContext context) {
     final scripts = ref.watch(scriptsProvider);
     final folders = ref.watch(foldersProvider).value ?? const <Folder>[];
-    final names = {for (final f in folders) f.id: f.name};
 
     return Scaffold(
       appBar: AppBar(
@@ -120,45 +115,26 @@ class _ScriptManageScreenState extends ConsumerState<ScriptManageScreen> {
           : null,
       body: switch (scripts) {
         AsyncData(:final value) when value.isEmpty => _EmptyGuide(onPaste: _add),
-        AsyncData(:final value) => Column(
-            children: [
-              FolderChips(
-                folders: folders,
-                selected: _folder,
-                onSelected: (v) => setState(() => _folder = v),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(bottom: 96),
-                  children: [
-                    for (final s in value.where((s) => inFolder(s, _folder)))
-                      ListTile(
-                        title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text([
-                          '${countSyllables(s.body)}음절',
-                          if (names[s.folderId] != null) names[s.folderId]!,
-                        ].join(' · ')),
-                        onTap: () => _view(s),
-                        trailing: PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert),
-                          onSelected: (v) => switch (v) {
-                            'view' => _view(s),
-                            'copy' => _duplicate(s),
-                            'move' => _move(s, folders),
-                            _ => _delete(s),
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'view', child: Text('조회')),
-                            PopupMenuItem(value: 'copy', child: Text('복제')),
-                            PopupMenuItem(value: 'move', child: Text('폴더 이동')),
-                            PopupMenuItem(value: 'delete', child: Text('삭제')),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+        AsyncData() => ScriptBrowser(
+            onOpen: _view,
+            trailing: (s, practicing) => PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: '더보기',
+              onSelected: (v) => switch (v) {
+                'view' => _view(s),
+                'done' => _complete(s),
+                'copy' => _duplicate(s),
+                'move' => _move(s, folders),
+                _ => _delete(s),
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'view', child: Text('조회')),
+                if (practicing) const PopupMenuItem(value: 'done', child: Text('연습 완료')),
+                const PopupMenuItem(value: 'copy', child: Text('복제')),
+                const PopupMenuItem(value: 'move', child: Text('폴더 이동')),
+                const PopupMenuItem(value: 'delete', child: Text('삭제')),
+              ],
+            ),
           ),
         AsyncError() => const Center(child: Text('원고를 불러오지 못했어요')),
         _ => const Center(child: CircularProgressIndicator()),

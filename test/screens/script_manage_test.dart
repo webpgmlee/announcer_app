@@ -1,5 +1,6 @@
 import 'package:announcer_app/analysis/pitch.dart';
 import 'package:announcer_app/data/models.dart';
+import 'package:announcer_app/widgets/script_browser.dart';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,11 +24,55 @@ void main() {
 
   Future<void> openMenu(WidgetTester tester, String title, String item) async {
     await tester.tap(find.descendant(
-        of: find.widgetWithText(ListTile, title), matching: find.byIcon(Icons.more_vert)));
+        of: find.ancestor(of: find.text(title), matching: find.byType(ScriptCard)),
+        matching: find.byIcon(Icons.more_vert)));
     await tester.pumpAndSettle();
     await tester.tap(find.text(item).last);
     await tester.pumpAndSettle();
   }
+
+  Future<void> record(int scriptId) => store.sessions.add(PracticeSession(
+      scriptId: scriptId,
+      audioPath: 'x.wav',
+      elapsed: const Duration(seconds: 5),
+      syllablesPerMinute: 300,
+      pitch: const [PitchPoint(t: Duration.zero, hz: 200)],
+      createdAt: DateTime(2026, 11, 25)));
+
+  testWidgets('연습 완료: 메뉴에서 누르면 연습 중에서 빠져 분야 목록으로 돌아간다', (tester) async {
+    final id = await addScript('날씨');
+    await record(id);
+    await openManage(tester);
+    expect(find.widgetWithText(ChoiceChip, '연습 중 1'), findsOneWidget);
+    await openMenu(tester, '날씨', '연습 완료');
+    expect(find.widgetWithText(ChoiceChip, '연습 중 0'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, '전체'));
+    await tester.pumpAndSettle();
+    expect(find.text('날씨'), findsOneWidget);
+    expect((await store.scripts.all()).single.completedAt, isNotNull);
+  });
+
+  testWidgets('연습 중이 아닌 원고의 메뉴에는 연습 완료가 없다', (tester) async {
+    await addScript('날씨');
+    await openManage(tester);
+    await tester.tap(find.descendant(
+        of: find.ancestor(of: find.text('날씨'), matching: find.byType(ScriptCard)),
+        matching: find.byIcon(Icons.more_vert)));
+    await tester.pumpAndSettle();
+    expect(find.text('연습 완료'), findsNothing);
+  });
+
+  testWidgets('조회 화면에서도 연습 완료를 누를 수 있다', (tester) async {
+    final id = await addScript('날씨');
+    await record(id);
+    await openManage(tester);
+    await tester.tap(find.text('날씨'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('연습 완료'));
+    await tester.pumpAndSettle();
+    expect((await store.scripts.all()).single.completedAt, isNotNull);
+    expect(find.text('연습 완료'), findsNothing); // 완료한 뒤에는 버튼이 사라진다
+  });
 
   testWidgets('원고가 없으면 붙여넣기 안내', (tester) async {
     await openManage(tester);
@@ -88,7 +133,7 @@ void main() {
     await openManage(tester);
     await tester.tap(find.text('날씨'));
     await tester.pumpAndSettle();
-    expect(find.text('안녕하십니까. 뉴스입니다.'), findsOneWidget);
+    expect(find.text(keepWords('안녕하십니까. 뉴스입니다.')), findsOneWidget);
     expect(find.text('11음절'), findsOneWidget);
     expect(find.text('녹음 1번'), findsOneWidget);
     expect(find.text('이 원고로 연습'), findsOneWidget);

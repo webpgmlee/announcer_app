@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../analysis/compare.dart';
 import 'models.dart';
+import 'practice_state.dart';
 
 class SessionRepository {
   SessionRepository(this._db);
@@ -45,6 +46,19 @@ class SessionRepository {
         whereArgs: [scriptId],
         orderBy: 'created_at DESC, id DESC');
     return rows.map(_fromRow).toList();
+  }
+
+  /// 원고별 녹음 횟수와 마지막 녹음 시각. 녹음이 없는 원고는 들어 있지 않다.
+  Future<Map<int, PracticeStat>> practiceStats() async {
+    final rows = await _db.rawQuery(
+        'SELECT script_id, COUNT(*) AS n, MAX(created_at) AS last FROM sessions GROUP BY script_id');
+    return {
+      for (final r in rows)
+        r['script_id'] as int: (
+          count: r['n'] as int,
+          last: DateTime.fromMillisecondsSinceEpoch(r['last'] as int),
+        ),
+    };
   }
 
   /// 모든 원고의 녹음 기록, 최신순.

@@ -41,6 +41,9 @@ class ScriptRepository {
               difficulty: r['difficulty'] as int?,
               isPremium: r['is_premium'] == 1,
               folderId: r['folder_id'] as int?,
+              completedAt: r['completed_at'] == null
+                  ? null
+                  : DateTime.fromMillisecondsSinceEpoch(r['completed_at'] as int),
               createdAt:
                   DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int),
             ))
@@ -81,6 +84,11 @@ class ScriptRepository {
         where: 'id = ?',
         whereArgs: [scriptId],
       );
+
+  /// "연습 완료": 연습 중 목록에서 빼서 분야 목록으로 돌려보낸다. 다시 녹음하면 연습 중이 된다.
+  Future<void> markCompleted(int scriptId, {DateTime? at}) => _db.update(
+      'scripts', {'completed_at': (at ?? DateTime.now()).millisecondsSinceEpoch},
+      where: 'id = ?', whereArgs: [scriptId]);
 
   /// 원고를 다른 폴더로 옮긴다. [folderId]가 null이면 폴더 없음.
   Future<void> moveToFolder(int scriptId, int? folderId) => _db.update(

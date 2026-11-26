@@ -2,11 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../analysis/syllables.dart';
 import '../data/models.dart';
 import '../providers.dart';
 import '../theme.dart';
-import '../widgets/folder_chips.dart';
+import '../widgets/script_browser.dart';
 import 'record_screen.dart';
 import 'script_manage_screen.dart';
 
@@ -30,12 +29,9 @@ class PracticePickScreen extends ConsumerStatefulWidget {
 }
 
 class _PracticePickScreenState extends ConsumerState<PracticePickScreen> {
-  int _folder = allFolders;
-
   @override
   Widget build(BuildContext context) {
     final scripts = ref.watch(scriptsProvider);
-    final folders = ref.watch(foldersProvider).value ?? const <Folder>[];
     return Scaffold(
       appBar: AppBar(title: const Text('발음연습')),
       body: switch (scripts) {
@@ -54,27 +50,12 @@ class _PracticePickScreenState extends ConsumerState<PracticePickScreen> {
               ],
             ),
           ),
-        AsyncData(:final value) => Column(
-            children: [
-              FolderChips(
-                folders: folders,
-                selected: _folder,
-                onSelected: (v) => setState(() => _folder = v),
-              ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final s in value.where((s) => inFolder(s, _folder)))
-                      ListTile(
-                        title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text('${countSyllables(s.body)}음절'),
-                        trailing: const Icon(Icons.mic_none),
-                        onTap: () => openRecordPage(context, ref, s),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+        AsyncData() => ScriptBrowser(
+            onOpen: (s) => openRecordPage(context, ref, s),
+            trailing: (_, _) => const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(Icons.mic_none, color: Palette.muted),
+            ),
           ),
         AsyncError() => const Center(child: Text('원고를 불러오지 못했어요')),
         _ => const Center(child: CircularProgressIndicator()),
