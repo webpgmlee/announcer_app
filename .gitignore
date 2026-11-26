@@ -60,3 +60,6 @@ spike/assets/*.bin
 
 # 앱에 넣는 인식 모델 (assets/models/README.md 참고)
 assets/models/*.bin
+
+# 화면 미리보기 이미지
+tool/preview/out/
