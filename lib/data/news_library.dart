@@ -10,7 +10,7 @@ import 'script_repository.dart';
 // 숫자는 한자어로 읽는 표기(예: 3.25%, 250만 원)만 쓰고, 고유어로 읽어야 하는 수(아홉 개, 열 시)는
 // 한글로 적었다. 읽는 소리 변환(readAloud)이 그대로 읽을 수 있게 하기 위해서다.
 
-const newsCategories = ['경제', '시사', '연예', '스포츠'];
+const newsCategories = defaultFolderNames;
 const levelLabels = {1: '초급', 2: '중급', 3: '고급'};
 
 typedef NewsScript = ({String category, int level, String title, String body});

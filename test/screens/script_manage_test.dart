@@ -211,4 +211,19 @@ void main() {
     expect(await store.folders.all(), isEmpty);
     expect((await store.scripts.all()).single.folderId, isNull);
   });
+
+  testWidgets('폴더 관리: 기본 폴더는 잠겨 있고 바꾸기·지우기 버튼이 없다', (tester) async {
+    await store.folders.add('경제');
+    await store.folders.add('내 폴더');
+    await openManage(tester);
+    await tester.tap(find.byTooltip('폴더 관리'));
+    await tester.pumpAndSettle();
+    Finder tile(String name) => find.ancestor(of: find.text(name), matching: find.byType(ListTile));
+    expect(find.descendant(of: tile('경제'), matching: find.text('기본 폴더')), findsOneWidget);
+    expect(find.descendant(of: tile('경제'), matching: find.byIcon(Icons.lock_outline)), findsOneWidget);
+    expect(find.descendant(of: tile('경제'), matching: find.byTooltip('이름 바꾸기')), findsNothing);
+    expect(find.descendant(of: tile('경제'), matching: find.byTooltip('폴더 지우기')), findsNothing);
+    expect(find.descendant(of: tile('내 폴더'), matching: find.byTooltip('이름 바꾸기')), findsOneWidget);
+    expect(find.descendant(of: tile('내 폴더'), matching: find.byTooltip('폴더 지우기')), findsOneWidget);
+  });
 }

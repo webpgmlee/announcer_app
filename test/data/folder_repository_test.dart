@@ -160,4 +160,33 @@ void main() {
     await v5.close();
     dir.deleteSync(recursive: true);
   });
+
+  group('기본 폴더 (경제·시사·연예·스포츠)', () {
+    test('기본 폴더 이름 목록', () {
+      expect(defaultFolderNames, ['경제', '시사', '연예', '스포츠']);
+      expect(isDefaultFolder(Folder(name: '경제', createdAt: DateTime(2026))), isTrue);
+      expect(isDefaultFolder(Folder(name: '내 폴더', createdAt: DateTime(2026))), isFalse);
+    });
+
+    test('기본 폴더는 이름을 바꿀 수 없다', () async {
+      final id = await folders.add('경제');
+      expect(() => folders.rename(id, '돈 이야기'), throwsArgumentError);
+      expect((await folders.all()).single.name, '경제');
+    });
+
+    test('기본 폴더는 지울 수 없고 안의 원고도 그대로', () async {
+      final id = await folders.add('스포츠');
+      final s = await addScript('야구', folderId: id);
+      expect(() => folders.delete(id), throwsArgumentError);
+      expect(await folders.all(), hasLength(1));
+      expect((await scripts.all()).firstWhere((x) => x.id == s.id).folderId, id);
+    });
+
+    test('다른 폴더는 지금처럼 바꾸고 지울 수 있다', () async {
+      final id = await folders.add('내 폴더');
+      await folders.rename(id, '내 원고');
+      await folders.delete(id);
+      expect(await folders.all(), isEmpty);
+    });
+  });
 }
