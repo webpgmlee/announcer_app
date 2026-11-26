@@ -3,10 +3,18 @@
 // 결과: tool/preview/out/*.png (휴대폰 크기 390×844, 3배 해상도)
 import 'dart:io';
 
+import 'package:announcer_app/analysis/compare.dart';
+import 'package:announcer_app/analysis/diction_score.dart';
 import 'package:announcer_app/analysis/pitch.dart';
+import 'package:announcer_app/data/challenge_repository.dart';
 import 'package:announcer_app/data/default_scripts.dart';
 import 'package:announcer_app/data/models.dart';
 import 'package:announcer_app/data/news_library.dart';
+import 'package:announcer_app/data/twisters.dart';
+import 'package:announcer_app/screens/challenge_result_view.dart';
+import 'package:announcer_app/screens/challenge_screen.dart';
+import 'package:announcer_app/screens/folder_manage_screen.dart';
+import 'package:announcer_app/screens/perfect_diction_screen.dart';
 import 'package:announcer_app/screens/script_detail_screen.dart';
 import 'package:announcer_app/screens/script_manage_screen.dart';
 import 'package:announcer_app/theme.dart';
@@ -107,5 +115,60 @@ void main() {
     await shoot(tester, const ScriptManageScreen(), '4_search', before: () async {
       await tester.enterText(find.byType(TextField), '금리');
     });
+  });
+
+  DictionScore score(int total, {double acc = 92, double speed = 88, bool perfect = false}) =>
+      DictionScore(
+        total: total,
+        accuracy: acc,
+        speed: speed,
+        measuredPace: 312,
+        stars: starsFor(total),
+        perfect: perfect,
+      );
+
+  testWidgets('5 퍼펙트딕션 도전 목록', (tester) async {
+    final s1 = twisters.where((t) => t.stage == 1).toList();
+    await store.challenges.add(twisterKey(s1[0].id), score(96));
+    await store.challenges.add(twisterKey(s1[1].id), score(88));
+    await store.challenges.add(twisterKey(s1[2].id), score(74));
+    await shoot(tester, const PerfectDictionScreen(), '5_perfect_list');
+  });
+
+  testWidgets('6 퍼펙트딕션 도전 화면', (tester) async {
+    final t = twisters.first;
+    await shoot(
+        tester,
+        ChallengeScreen(
+            challengeKey: twisterKey(t.id), title: t.title, body: t.body, pace: stagePace(1)),
+        '6_challenge');
+  });
+
+  testWidgets('7 퍼펙트딕션 결과', (tester) async {
+    await shoot(
+        tester,
+        Scaffold(
+          appBar: AppBar(title: const Text('간장공장 공장장')),
+          body: ChallengeResultView(
+            score: score(88),
+            targetPace: 300,
+            newBest: true,
+            marks: const [
+              WordMark(scriptWord: '간장', status: MarkStatus.matched),
+              WordMark(scriptWord: '공장', status: MarkStatus.matched),
+              WordMark(scriptWord: '공장장은', heardWord: '공정장은', status: MarkStatus.misheard),
+              WordMark(scriptWord: '강', status: MarkStatus.matched),
+              WordMark(scriptWord: '공장장이고,', status: MarkStatus.matched),
+            ],
+            onRetry: () {},
+            onExit: () {},
+          ),
+        ),
+        '7_result');
+  });
+
+  testWidgets('8 폴더 관리 (기본 폴더 잠금)', (tester) async {
+    await store.folders.add('내 연습 원고');
+    await shoot(tester, const FolderManageScreen(), '8_folders');
   });
 }
