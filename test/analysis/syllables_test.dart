@@ -85,4 +85,18 @@ void main() {
       expect(readAloud('5G'), '오지');
     });
   });
+
+  group('앞에 1이 붙은 천·백·만', () {
+    test('1만·1천·1백은 일을 빼고 읽는다', () {
+      expect(readAloud('1만 2천 건'), '만 이천 건');
+      expect(readAloud('1천 명'), '천 명');
+      expect(readAloud('1백 개'), '백 개');
+    });
+    test('다른 숫자 뒤의 1이나 억·조 앞의 1은 그대로', () {
+      expect(readAloud('21만'), '이십일만');
+      expect(readAloud('1억 시간'), '일억 시간');
+      expect(readAloud('1조'), '일조');
+      expect(readAloud('3.1만'), '삼점일만');
+    });
+  });
 }

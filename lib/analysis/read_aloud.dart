@@ -9,6 +9,8 @@ String readAloud(String text) {
   // 천 단위 쉼표(1,500)를 먼저 지운다.
   var s = text.replaceAllMapped(
       RegExp(r'(?<=\d),(?=\d{3})'), (_) => '');
+  // "1만", "1천", "1백"은 "일"을 빼고 "만", "천", "백"으로 읽는다 (억·조는 "일억", "일조").
+  s = s.replaceAll(RegExp(r'(?<![\d.])1(?=[천백만])'), '');
   // 숫자 뒤 단위는 알파벳으로 읽기 전에 바꾼다.
   s = s.replaceAllMapped(
       RegExp(r'(\d)(\s?)(mm|cm|km|kg|mg|ml)(?![A-Za-z])'),
