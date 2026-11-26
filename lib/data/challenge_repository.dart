@@ -2,7 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../analysis/diction_score.dart';
 
-/// 도전 키: 잰말놀이는 `twister:<아이디>`, 내 원고는 `script:<원고 번호>`.
+/// 도전 키: 잰말놀이는 `twister:<아이디>`, 원고는 `script:<원고 번호>`.
 String twisterKey(String id) => 'twister:$id';
 String scriptKey(int scriptId) => 'script:$scriptId';
 

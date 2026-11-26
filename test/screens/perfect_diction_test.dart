@@ -39,10 +39,12 @@ void main() {
   final stage2 = twisters.where((t) => t.stage == 2).toList();
 
   group('도전 목록', () {
-    testWidgets('잰말놀이·내 원고 탭과 모은 별 수', (tester) async {
+    testWidgets('딕션 챌린지·원고 탭과 모은 별 수', (tester) async {
       await pump(tester);
-      expect(find.text('잰말놀이'), findsOneWidget);
-      expect(find.text('내 원고'), findsOneWidget);
+      expect(find.text('딕션 챌린지'), findsOneWidget);
+      expect(find.text('잰말놀이'), findsNothing);
+      expect(find.text('원고'), findsOneWidget);
+      expect(find.text('내 원고'), findsNothing);
       expect(find.text('★ 0 / 45'), findsOneWidget);
       expect(find.text(stage1.first.title), findsOneWidget);
       expect(find.text('1단계 · 목표 300음절/분'), findsOneWidget);
@@ -79,7 +81,7 @@ void main() {
       expect(find.textContaining('별 5개를 모으면 열려요'), findsNothing);
     });
 
-    testWidgets('열린 잰말놀이를 누르면 도전 화면이 열린다', (tester) async {
+    testWidgets('열린 챌린지를 누르면 도전 화면이 열린다', (tester) async {
       await pump(tester);
       await tester.tap(find.text(stage1.first.title));
       await tester.pumpAndSettle();
@@ -87,10 +89,10 @@ void main() {
       expect(find.text('ON AIR'), findsOneWidget);
     });
 
-    testWidgets('내 원고 탭에는 원고관리의 원고가 나온다', (tester) async {
+    testWidgets('원고 탭에는 원고관리의 원고가 나온다', (tester) async {
       await store.scripts.add(Script(title: '초급 · 날씨 소식', body: '맑겠습니다.', createdAt: DateTime(2026)));
       await pump(tester);
-      await tester.tap(find.text('내 원고'));
+      await tester.tap(find.text('원고'));
       await tester.pumpAndSettle();
       expect(find.text('날씨 소식'), findsOneWidget);
     });

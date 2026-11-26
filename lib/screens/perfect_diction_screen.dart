@@ -10,7 +10,7 @@ import '../theme.dart';
 import '../widgets/script_browser.dart';
 import 'challenge_screen.dart';
 
-/// 퍼펙트딕션: 잰말놀이(1~3단계, 별을 모아 다음 단계)와 내 원고로 도전한다.
+/// 퍼펙트딕션: 딕션 챌린지(발음이 어려운 문장 1~3단계, 별을 모아 다음 단계)와 원고관리의 원고로 도전한다.
 class PerfectDictionScreen extends ConsumerWidget {
   const PerfectDictionScreen({super.key});
 
@@ -44,8 +44,8 @@ class PerfectDictionScreen extends ConsumerWidget {
             labelColor: Palette.ink,
             indicatorColor: Palette.ink,
             tabs: [
-              Tab(text: '잰말놀이'),
-              Tab(text: '내 원고'),
+              Tab(text: '딕션 챌린지'),
+              Tab(text: '원고'),
             ],
           ),
         ),

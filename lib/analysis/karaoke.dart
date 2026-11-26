@@ -16,6 +16,9 @@ const countdownLength = Duration(seconds: 3);
 /// 마지막 문장이 끝난 뒤 녹음을 멈추기까지.
 const endHold = Duration(milliseconds: 1500);
 
+/// 진행이 끝난 뒤 말이 계속 들려도 이 시간이 지나면 녹음을 멈춘다.
+const maxOvertime = Duration(seconds: 10);
+
 /// 범위(200~500) 안의 10 단위 값으로 맞춘다.
 double clampPace(double v) {
   if (v.isNaN) return defaultPace;

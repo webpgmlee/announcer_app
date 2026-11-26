@@ -293,18 +293,54 @@ void main() {
       expect(c.pace, 450);
     });
 
-    test('마지막 문장이 끝나고 1.5초 뒤 저절로 녹음을 멈춘다', () async {
+    void silence(Duration d) {
+      final n = 16000 * d.inMilliseconds ~/ 1000;
+      for (var o = 0; o < n; o += 1600) {
+        recorder.frames.add(Float32List(min(1600, n - o)));
+      }
+    }
+
+    test('원고가 끝나고 말을 멈추면 1.5초 뒤 저절로 녹음을 멈추고 저장한다', () async {
       await c.start();
       recorder.result = recording(sine(const Duration(seconds: 7)));
-      final end = countdownLength + timeline(defaultPace).total + endHold;
-      feed(end - const Duration(milliseconds: 300));
+      final progressEnd = countdownLength + timeline(defaultPace).total;
+      feed(progressEnd);
+      silence(endHold - const Duration(milliseconds: 300));
+      await pumpEventQueue();
+      expect(c.state.phase, PracticePhase.recording);
+      silence(const Duration(milliseconds: 500));
+      await pumpEventQueue(times: 50);
+      await c.settled;
+      expect(recorder.done.isCompleted, isTrue);
+      expect(c.state.phase, PracticePhase.result);
+      expect(await sessions.forScript(1), hasLength(1)); // 저장됨
+    });
+
+    test('진행보다 늦게 읽어 아직 말하는 중이면 끊지 않고, 말을 멈춘 뒤 멈춘다', () async {
+      await c.start();
+      recorder.result = recording(sine(const Duration(seconds: 9)));
+      final progressEnd = countdownLength + timeline(defaultPace).total;
+      feed(progressEnd + const Duration(seconds: 3)); // 진행이 끝난 뒤에도 3초 더 읽음
+      await pumpEventQueue();
+      expect(c.state.phase, PracticePhase.recording);
+      silence(endHold + const Duration(milliseconds: 200));
+      await pumpEventQueue(times: 50);
+      await c.settled;
+      expect(c.state.phase, PracticePhase.result);
+    });
+
+    test('소리가 계속 나도 진행이 끝나고 10초 뒤에는 반드시 멈춘다', () async {
+      await c.start();
+      recorder.result = recording(sine(const Duration(seconds: 16)));
+      final progressEnd = countdownLength + timeline(defaultPace).total;
+      feed(progressEnd + maxOvertime - const Duration(milliseconds: 300));
       await pumpEventQueue();
       expect(c.state.phase, PracticePhase.recording);
       feed(const Duration(milliseconds: 500));
       await pumpEventQueue(times: 50);
       await c.settled;
-      expect(recorder.done.isCompleted, isTrue);
       expect(c.state.phase, PracticePhase.result);
+      expect(maxOvertime, const Duration(seconds: 10));
     });
 
     test('카운트다운 중에 멈춰도 결과가 나온다 (Review Focus 2)', () async {

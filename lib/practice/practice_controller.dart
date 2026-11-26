@@ -204,6 +204,7 @@ class PracticeController extends ChangeNotifier {
   bool _disposed = false;
   late KaraokeTimeline _timeline = KaraokeTimeline(_words, _pauses, _pace);
   bool _autoStopped = false;
+  Duration _lastVoice = Duration.zero;
   SyllableRateMeter _rate = SyllableRateMeter();
   PaceAdvisor _advisor = PaceAdvisor(pace: defaultPace);
   PaceFeedback _feedback = PaceFeedback.none;
@@ -232,6 +233,7 @@ class PracticeController extends ChangeNotifier {
     _live = _LivePitch();
     _timeline = KaraokeTimeline(_words, _pauses, _pace);
     _autoStopped = false;
+    _lastVoice = Duration.zero;
     _rate = SyllableRateMeter();
     _advisor = PaceAdvisor(pace: _pace);
     _feedback = PaceFeedback.none;
@@ -260,13 +262,21 @@ class PracticeController extends ChangeNotifier {
       _feedback = _advisor.update(now, _rate.spm);
     }
     _publish();
-    // 마지막 문장이 끝나고 잠시 뒤 녹음을 멈춘다.
-    final t = _clock - countdownLength;
-    if (!_autoStopped && t >= _timeline.total + endHold) {
+    if (dbfs(frame) > _voiceDb) _lastVoice = _clock;
+    // 원고 진행이 끝나고 목소리가 1.5초 멈추면 녹음을 멈추고 저장한다.
+    // 진행보다 늦게 읽고 있으면 끊지 않고 기다리되, 소리가 계속 나도 10초 뒤에는 멈춘다.
+    final over = _clock - countdownLength - _timeline.total;
+    final quietFor = _clock - _lastVoice;
+    if (!_autoStopped &&
+        over >= Duration.zero &&
+        ((over >= endHold && quietFor >= endHold) || over >= maxOvertime)) {
       _autoStopped = true;
       unawaited(stop());
     }
   }
+
+  /// 이보다 큰 소리를 "말하는 중"으로 본다 (dBFS).
+  static const _voiceDb = -40.0;
 
   /// 녹음된 소리 길이. 진행 시계로 쓴다 (녹음과 진행이 어긋나지 않게).
   Duration get _clock =>

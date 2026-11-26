@@ -38,7 +38,7 @@ class HomeMenu extends StatelessWidget {
       ),
       _MenuCard(
         label: '퍼펙트딕션',
-        description: '잰말놀이 도전, 별 모으기',
+        description: '딕션 챌린지, 별 모으기',
         icon: Icons.auto_awesome_outlined,
         onTap: () => _open(context, const PerfectDictionScreen()),
       ),

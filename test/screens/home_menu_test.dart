@@ -69,7 +69,7 @@ void main() {
     await store.pumpApp(tester);
     await tester.tap(find.text('퍼펙트딕션'));
     await tester.pumpAndSettle();
-    expect(find.text('잰말놀이'), findsOneWidget);
+    expect(find.text('딕션 챌린지'), findsOneWidget);
     expect(find.text('곧 만나요'), findsNothing);
   });
 }
